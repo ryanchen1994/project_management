@@ -1,0 +1,24 @@
+# Python 虛擬環境
+backend/venv/
+backend/.venv/ # 有些人可能用 .venv
+
+# Python 快取檔案
+backend/__pycache__/
+backend/*.pyc
+backend/*.pyo
+backend/*.pyd
+
+# Flask instance folder (如果有的話)
+backend/instance/
+
+# 環境變數檔案 (如果有的話，例如 .env 儲存 DATABASE_URL)
+backend/.env
+
+# 作業系統產生的檔案
+.DS_Store
+Thumbs.db
+
+# IDE/編輯器特定設定檔 (可選，根據您的使用情況)
+.vscode/
+.idea/
+*.swp
