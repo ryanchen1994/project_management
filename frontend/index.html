@@ -37,9 +37,9 @@
         .task-item {
             border-left: 3px solid transparent; 
         }
-        .task-item.status-待辦 { border-left-color: #9ca3af; /* gray-400 */ }
-        .task-item.status-進行中 { border-left-color: #3b82f6; /* blue-500 */ }
-        .task-item.status-已完成 { border-left-color: #10b981; /* green-500 */ }
+        .task-item.status-待辦 { border-left-color: #9ca3af; }
+        .task-item.status-進行中 { border-left-color: #3b82f6; }
+        .task-item.status-已完成 { border-left-color: #10b981; }
 
         [v-cloak] { display: none; }
 
@@ -51,7 +51,7 @@
             font-weight: 500;
             font-size: 0.875rem;
             line-height: 1.25rem;
-            cursor: pointer; /* 讓標籤看起來可點擊 */
+            cursor: pointer; 
             transition: background-color 0.2s;
         }
         .stat-badge:hover {
@@ -60,8 +60,8 @@
         .stat-badge-todo { background-color: #e5e7eb; color: #374151; }
         .stat-badge-inprogress { background-color: #dbeafe; color: #1d4ed8; }
         .stat-badge-done { background-color: #d1fae5; color: #047857; }
-        .stat-badge-total { background-color: #f3e8ff; color: #6b21a8; cursor: default; } /* 總計通常不可點擊 */
-        .stat-badge.active { /* 選中狀態的樣式 */
+        .stat-badge-total { background-color: #f3e8ff; color: #6b21a8; cursor: default; }
+        .stat-badge.active { 
             ring: 2px;
             ring-offset-2;
         }
@@ -69,109 +69,184 @@
         .stat-badge-inprogress.active { box-shadow: 0 0 0 2px #3b82f6; }
         .stat-badge-done.active { box-shadow: 0 0 0 2px #10b981; }
 
+        .auth-form-container {
+            max-width: 400px;
+            margin: 4rem auto;
+            padding: 2rem;
+            background-color: white;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+        }
     </style>
 </head>
 <body class="antialiased">
-    <div id="app" v-cloak class="min-h-screen bg-gray-100 p-4 md:p-8">
-        <div class="max-w-6xl mx-auto">
-            <header class="mb-8">
-                <h1 class="text-4xl font-bold text-gray-800 text-center">我的專案管理系統</h1>
-            </header>
-
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div class="md:col-span-1 bg-white p-6 rounded-lg shadow">
-                    <div class="flex justify-between items-center mb-4">
-                        <h2 class="text-2xl font-semibold text-gray-700">專案列表</h2>
-                        <button @click="openCreateProjectModal" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition duration-150">
-                            新增專案
-                        </button>
+    <div id="app" v-cloak class="min-h-screen bg-gray-100">
+        <nav class="bg-white shadow-sm">
+            <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex items-center justify-between h-16">
+                    <div class="flex items-center">
+                        <span class="font-bold text-xl text-blue-600">專案管理系統</span>
                     </div>
-                    <ul v-if="projects.length > 0" class="space-y-2">
-                        <li v-for="project in projects" :key="project.id"
-                            @click="selectProject(project)"
-                            :class="['p-3 rounded-md cursor-pointer transition-colors duration-150', selectedProject && selectedProject.id === project.id ? 'bg-blue-100 text-blue-700 font-semibold' : 'hover:bg-gray-200']">
-                            {{ project.name }}
-                        </li>
-                    </ul>
-                    <p v-else class="text-gray-500">目前沒有專案。</p>
+                    <div class="flex items-center">
+                        <div v-if="currentUser" class="flex items-center space-x-4">
+                            <span class="text-gray-700">你好, {{ currentUser.name }}</span>
+                            <button @click="logout" class="text-sm font-medium text-red-600 hover:text-red-800">登出</button>
+                        </div>
+                        <div v-else class="space-x-4">
+                            <button @click="currentView = 'login'" class="text-sm font-medium text-gray-600 hover:text-gray-900">登入</button>
+                            <button @click="currentView = 'register'" class="text-sm font-medium text-blue-600 hover:text-blue-800">註冊</button>
+                        </div>
+                    </div>
                 </div>
+            </div>
+        </nav>
 
-                <div class="md:col-span-2 bg-white p-6 rounded-lg shadow">
-                    <div v-if="selectedProject">
-                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4">
-                            <div>
-                                <h2 class="text-3xl font-bold text-gray-800">{{ selectedProject.name }}</h2>
-                                <p class="text-gray-600 mt-1">{{ selectedProject.description }}</p>
-                            </div>
-                            <button @click="openCreateTaskModal(null)" class="mt-4 sm:mt-0 bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition duration-150 self-start sm:self-center">
-                                新增頂層任務
+        <div class="p-4 md:p-8">
+            <div v-if="currentView === 'login'" class="auth-form-container">
+                <h2 class="text-2xl font-bold text-center text-gray-800 mb-6">登入系統</h2>
+                <form @submit.prevent="handleLogin">
+                    <div class="mb-4">
+                        <label for="loginEmail" class="block text-sm font-medium text-gray-700">電子郵件</label>
+                        <input type="email" id="loginEmail" v-model="loginForm.email" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div class="mb-6">
+                        <label for="loginPassword" class="block text-sm font-medium text-gray-700">密碼</label>
+                        <input type="password" id="loginPassword" v-model="loginForm.password" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <p v-if="authError" class="text-red-500 text-sm mb-4">{{ authError }}</p>
+                    <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-md shadow-sm transition duration-150">登入</button>
+                </form>
+                <p class="mt-4 text-center text-sm">
+                    還沒有帳號? <button @click="currentView = 'register'" class="font-medium text-blue-600 hover:text-blue-500">立即註冊</button>
+                </p>
+            </div>
+
+            <div v-if="currentView === 'register'" class="auth-form-container">
+                <h2 class="text-2xl font-bold text-center text-gray-800 mb-6">註冊新帳號</h2>
+                <form @submit.prevent="handleRegister">
+                    <div class="mb-4">
+                        <label for="registerName" class="block text-sm font-medium text-gray-700">名稱</label>
+                        <input type="text" id="registerName" v-model="registerForm.name" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div class="mb-4">
+                        <label for="registerEmail" class="block text-sm font-medium text-gray-700">電子郵件</label>
+                        <input type="email" id="registerEmail" v-model="registerForm.email" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div class="mb-6">
+                        <label for="registerPassword" class="block text-sm font-medium text-gray-700">密碼</label>
+                        <input type="password" id="registerPassword" v-model="registerForm.password" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                     <p v-if="authError" class="text-red-500 text-sm mb-4">{{ authError }}</p>
+                    <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-md shadow-sm transition duration-150">註冊</button>
+                </form>
+                 <p class="mt-4 text-center text-sm">
+                    已經有帳號了? <button @click="currentView = 'login'" class="font-medium text-blue-600 hover:text-blue-500">前往登入</button>
+                </p>
+            </div>
+            
+            <div v-if="currentView === 'app' && currentUser" class="max-w-6xl mx-auto">
+                 <header class="mb-8">
+                    </header>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="md:col-span-1 bg-white p-6 rounded-lg shadow">
+                        <div class="flex justify-between items-center mb-4">
+                            <h2 class="text-2xl font-semibold text-gray-700">專案列表</h2>
+                            <button @click="openCreateProjectModal" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition duration-150">
+                                新增專案
                             </button>
                         </div>
+                        <ul v-if="projects.length > 0" class="space-y-2">
+                            <li v-for="project in projects" :key="project.id"
+                                @click="selectProject(project)"
+                                :class="['p-3 rounded-md cursor-pointer transition-colors duration-150', selectedProject && selectedProject.id === project.id ? 'bg-blue-100 text-blue-700 font-semibold' : 'hover:bg-gray-200']">
+                                {{ project.name }}
+                            </li>
+                        </ul>
+                        <p v-else class="text-gray-500">目前沒有專案。</p>
+                    </div>
 
-                        <div v-if="projectTasks.length > 0" class="mb-6 p-4 bg-gray-50 rounded-lg">
-                            <h3 class="text-lg font-semibold text-gray-700 mb-3">任務統計</h3>
-                            <div class="flex flex-wrap gap-3">
-                                <span class="stat-badge stat-badge-todo" @click="selectStatusFilter('待辦')" :class="{ 'active': selectedStatusFilter === '待辦' }">
-                                    待辦: {{ taskStatistics.todo }}
-                                </span>
-                                <span class="stat-badge stat-badge-inprogress" @click="selectStatusFilter('進行中')" :class="{ 'active': selectedStatusFilter === '進行中' }">
-                                    進行中: {{ taskStatistics.inProgress }}
-                                </span>
-                                <span class="stat-badge stat-badge-done" @click="selectStatusFilter('已完成')" :class="{ 'active': selectedStatusFilter === '已完成' }">
-                                    已完成: {{ taskStatistics.done }}
-                                </span>
-                                <span class="stat-badge stat-badge-total">
-                                    總計: {{ taskStatistics.total }}
-                                </span>
+                    <div class="md:col-span-2 bg-white p-6 rounded-lg shadow">
+                        <div v-if="selectedProject">
+                            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4">
+                                <div>
+                                    <h2 class="text-3xl font-bold text-gray-800">{{ selectedProject.name }}</h2>
+                                    <p class="text-gray-600 mt-1">{{ selectedProject.description }}</p>
+                                </div>
+                                <button @click="openCreateTaskModal(null)" class="mt-4 sm:mt-0 bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition duration-150 self-start sm:self-center">
+                                    新增頂層任務
+                                </button>
                             </div>
-                        </div>
-                        <div v-if="selectedStatusFilter" class="mt-2 mb-6 p-4 bg-white rounded-lg shadow-inner border border-gray-200">
-                            <div class="flex justify-between items-center mb-3">
-                                <h3 class="text-xl font-semibold text-gray-700">
-                                    篩選結果：{{ selectedStatusFilter }} ({{ filteredTasks.length }} 筆任務)
-                                </h3>
-                                <button @click="clearStatusFilter" class="text-sm text-blue-600 hover:text-blue-800 font-medium">清除篩選</button>
+
+                            <div v-if="projectTasks.length > 0" class="mb-6 p-4 bg-gray-50 rounded-lg">
+                                <h3 class="text-lg font-semibold text-gray-700 mb-3">任務統計</h3>
+                                <div class="flex flex-wrap gap-3">
+                                    <span class="stat-badge stat-badge-todo" @click="selectStatusFilter('待辦')" :class="{ 'active': selectedStatusFilter === '待辦' }">
+                                        待辦: {{ taskStatistics.todo }}
+                                    </span>
+                                    <span class="stat-badge stat-badge-inprogress" @click="selectStatusFilter('進行中')" :class="{ 'active': selectedStatusFilter === '進行中' }">
+                                        進行中: {{ taskStatistics.inProgress }}
+                                    </span>
+                                    <span class="stat-badge stat-badge-done" @click="selectStatusFilter('已完成')" :class="{ 'active': selectedStatusFilter === '已完成' }">
+                                        已完成: {{ taskStatistics.done }}
+                                    </span>
+                                    <span class="stat-badge stat-badge-total">
+                                        總計: {{ taskStatistics.total }}
+                                    </span>
+                                </div>
                             </div>
-                            <ul v-if="filteredTasks.length > 0" class="space-y-2 max-h-80 overflow-y-auto pr-2">
-                                <li v-for="task in filteredTasks" :key="task.id" 
-                                    :class="['p-3 rounded-md shadow-sm', 
-                                             task.status === '待辦' ? 'bg-gray-100' : 
-                                             task.status === '進行中' ? 'bg-blue-50' : 
-                                             'bg-green-50']">
-                                    <p class="font-medium text-gray-800">{{ task.name }}</p>
-                                    <p class="text-xs text-gray-500 mt-1">
-                                        負責人: {{ assignedUserNameRoot(task.assignee_id) }}
-                                        <span v-if="task.parent_id"> | 上層任務: {{ getParentTaskName(task.parent_id) || '無' }} </span>
-                                        <span v-if="task.due_date"> | 截止: {{ formatDate(task.due_date) }}</span>
-                                    </p>
-                                    <p v-if="task.description" class="text-xs text-gray-600 mt-1 italic">描述: {{ task.description }}</p>
-                                </li>
-                            </ul>
-                            <p v-else class="text-gray-500">此狀態下沒有任務。</p>
+                            
+                            <div v-if="selectedStatusFilter" class="mt-2 mb-6 p-4 bg-white rounded-lg shadow-inner border border-gray-200">
+                                <div class="flex justify-between items-center mb-3">
+                                    <h3 class="text-xl font-semibold text-gray-700">
+                                        篩選結果：{{ selectedStatusFilter }} ({{ filteredTasks.length }} 筆任務)
+                                    </h3>
+                                    <button @click="clearStatusFilter" class="text-sm text-blue-600 hover:text-blue-800 font-medium">清除篩選</button>
+                                </div>
+                                <ul v-if="filteredTasks.length > 0" class="space-y-2 max-h-80 overflow-y-auto pr-2">
+                                    <li v-for="task in filteredTasks" :key="task.id" 
+                                        :class="['p-3 rounded-md shadow-sm', 
+                                                 task.status === '待辦' ? 'bg-gray-100' : 
+                                                 task.status === '進行中' ? 'bg-blue-50' : 
+                                                 'bg-green-50']">
+                                        <p class="font-medium text-gray-800">{{ task.name }}</p>
+                                        <p class="text-xs text-gray-500 mt-1">
+                                            負責人: {{ assignedUserNameRoot(task.assignee_id) }}
+                                            <span v-if="task.parent_id"> | 上層任務: {{ getParentTaskName(task.parent_id) || '無' }} </span>
+                                            <span v-if="task.due_date"> | 截止: {{ formatDate(task.due_date) }}</span>
+                                        </p>
+                                        <p v-if="task.description" class="text-xs text-gray-600 mt-1 italic">描述: {{ task.description }}</p>
+                                    </li>
+                                </ul>
+                                <p v-else class="text-gray-500">此狀態下沒有任務。</p>
+                            </div>
+                            
+                            <div v-if="isLoadingTasks" class="text-center py-4">
+                                <p class="text-gray-500">載入任務中...</p>
+                            </div>
+                            <div v-else-if="projectTasks.length > 0 && !selectedStatusFilter" class="space-y-4"> 
+                                <task-node 
+                                    v-for="task_item in rootTasks" :key="task_item.id" 
+                                    :task="task_item"
+                                    :all-tasks="projectTasks"
+                                    :users="users"
+                                    :level="0"
+                                    @update-task="handleUpdateTask"
+                                    @request-delete-confirmation="showDeleteConfirmation" 
+                                    @create-sub-task="openCreateTaskModal"
+                                    @assign-user="handleAssignUser"
+                                    @change-status="handleChangeStatus">
+                                </task-node>
+                            </div>
+                             <p v-else-if="projectTasks.length === 0 && !selectedStatusFilter" class="text-gray-500 mt-4">此專案尚無任務。點擊 "新增頂層任務" 來開始。</p>
                         </div>
-                        <div v-if="isLoadingTasks" class="text-center py-4">
-                            <p class="text-gray-500">載入任務中...</p>
+                        <div v-else class="text-center py-10">
+                            <p class="text-xl text-gray-500">請從左側選擇一個專案以查看其任務。</p>
                         </div>
-                        <div v-else-if="projectTasks.length > 0 && !selectedStatusFilter" class="space-y-4"> 
-                            <task-node 
-                                v-for="task_item in rootTasks" :key="task_item.id" 
-                                :task="task_item"
-                                :all-tasks="projectTasks"
-                                :users="users"
-                                :level="0"
-                                @update-task="handleUpdateTask"
-                                @request-delete-confirmation="showDeleteConfirmation" 
-                                @create-sub-task="openCreateTaskModal"
-                                @assign-user="handleAssignUser"
-                                @change-status="handleChangeStatus">
-                            </task-node>
-                        </div>
-                         <p v-else-if="projectTasks.length === 0 && !selectedStatusFilter" class="text-gray-500 mt-4">此專案尚無任務。點擊 "新增頂層任務" 來開始。</p>
-                         </div>
-                    <div v-else class="text-center py-10">
-                        <p class="text-xl text-gray-500">請從左側選擇一個專案以查看其任務。</p>
                     </div>
                 </div>
+            </div>
+            <div v-else-if="currentView !== 'login' && currentView !== 'register'">
+                <p class="text-center text-xl text-gray-500 py-10">請先登入以使用專案管理系統。</p>
             </div>
         </div>
 
@@ -240,7 +315,6 @@
             @confirm="handleDeleteConfirmed"
             @cancel="handleDeleteCancelled">
         </confirmation-modal>
-
     </div>
 
     <script type="text/x-template" id="task-node-template">
@@ -303,7 +377,6 @@
         </div>
     </script>
 
-
     <script>
         const API_BASE_URL = 'https://pmt.thm.com.tw/api'; 
 
@@ -329,10 +402,10 @@
             methods: {
                 assignedUserName(userId) {
                     if (!userId) return '未分配';
-                    const user = this.users.find(u => u.id === userId);
+                    const user = this.$root.users.find(u => u.id === userId); // Access users from root
                     return user ? user.name : '未知用戶';
                 },
-                formatDate(dateString) { // This formatDate is for TaskNode
+                formatDate(dateString) { 
                     if (!dateString) return '';
                     return new Date(dateString).toLocaleDateString(); 
                 },
@@ -355,8 +428,19 @@
             },
             data() {
                 return {
+                    // --- App State ---
+                    currentView: 'login', // 'login', 'register', 'app'
+                    authToken: localStorage.getItem('authToken') || null,
+                    currentUser: JSON.parse(localStorage.getItem('currentUser')) || null,
+                    authError: '',
+
+                    // --- Auth Forms ---
+                    loginForm: { email: '', password: '' },
+                    registerForm: { name: '', email: '', password: '' },
+                    
+                    // --- Project/Task Data ---
                     projects: [],
-                    users: [],
+                    users: [], // Will be fetched if admin, or for assignee selection
                     selectedProject: null,
                     projectTasks: [], 
                     
@@ -367,12 +451,8 @@
                     showTaskModal: false,
                     editingTask: null, 
                     currentTask: { 
-                        name: '', 
-                        description: '', 
-                        assignee_id: null, 
-                        status: '待辦', 
-                        parent_id: null,
-                        project_id: null, 
+                        name: '', description: '', assignee_id: null, 
+                        status: '待辦', parent_id: null, project_id: null, 
                         due_date_input: '' 
                     },
                     
@@ -386,6 +466,7 @@
                 };
             },
             computed: {
+                // ... (rootTasks, taskStatistics, filteredTasks remain the same)
                 rootTasks() {
                     if (!Array.isArray(this.projectTasks)) return [];
                     return this.projectTasks.filter(task => !task.parent_id)
@@ -408,53 +489,124 @@
                     }
                     return this.projectTasks.filter(task => task.status === this.selectedStatusFilter)
                                            .sort((a,b) => new Date(a.created_at) - new Date(b.created_at));
+                },
+                // Axios instance with auth header
+                axiosInstance() {
+                    const instance = axios.create({
+                        baseURL: API_BASE_URL,
+                    });
+                    if (this.authToken) {
+                        instance.defaults.headers.common['Authorization'] = `Bearer ${this.authToken}`;
+                    }
+                    // Interceptor to handle 401 errors (e.g., token expired)
+                    instance.interceptors.response.use(
+                        response => response,
+                        error => {
+                            if (error.response && error.response.status === 401) {
+                                console.warn("Axios interceptor: 401 Unauthorized, logging out.");
+                                this.logout(); // Automatically logout on 401
+                            }
+                            return Promise.reject(error);
+                        }
+                    );
+                    return instance;
                 }
             },
             methods: {
-                // ADDED formatDate to root app methods
-                formatDate(dateString) { // This formatDate is for the root app (filtered list)
+                formatDate(dateString) { 
                     if (!dateString) return '';
                     return new Date(dateString).toLocaleDateString(); 
                 },
+                // --- Auth Methods ---
+                async handleLogin() {
+                    this.authError = '';
+                    try {
+                        const response = await axios.post(`${API_BASE_URL}/auth/login`, this.loginForm);
+                        this.authToken = response.data.token;
+                        this.currentUser = response.data.user;
+                        localStorage.setItem('authToken', this.authToken);
+                        localStorage.setItem('currentUser', JSON.stringify(this.currentUser));
+                        this.currentView = 'app';
+                        this.loginForm = { email: '', password: '' }; // Clear form
+                        this.fetchInitialAppData(); // Fetch data after login
+                    } catch (error) {
+                        console.error("登入失敗:", error.response?.data || error.message);
+                        this.authError = error.response?.data?.message || '登入失敗，請檢查您的帳號或密碼。';
+                    }
+                },
+                async handleRegister() {
+                    this.authError = '';
+                    try {
+                        await axios.post(`${API_BASE_URL}/auth/register`, this.registerForm);
+                        alert('註冊成功！請使用您的新帳號登入。');
+                        this.currentView = 'login';
+                        this.registerForm = { name: '', email: '', password: '' }; // Clear form
+                    } catch (error) {
+                        console.error("註冊失敗:", error.response?.data || error.message);
+                        this.authError = error.response?.data?.message || '註冊失敗，請稍後再試。';
+                    }
+                },
+                logout() {
+                    this.authToken = null;
+                    this.currentUser = null;
+                    localStorage.removeItem('authToken');
+                    localStorage.removeItem('currentUser');
+                    this.currentView = 'login';
+                    this.projects = []; // Clear data on logout
+                    this.projectTasks = [];
+                    this.selectedProject = null;
+                    console.log("使用者已登出");
+                },
+                fetchInitialAppData() {
+                    if (this.currentUser) {
+                        this.fetchProjects();
+                        this.fetchUsers(); // Fetch users (might be restricted by backend later)
+                    }
+                },
+
+                // --- API Calls (modified to use axiosInstance) ---
                  async fetchProjects() {
+                    if (!this.currentUser) return; // Don't fetch if not logged in
                     this.isLoadingProjects = true;
                     try {
-                        const response = await axios.get(`${API_BASE_URL}/projects`);
+                        const response = await this.axiosInstance.get(`/projects`);
                         this.projects = response.data;
                     } catch (error) {
-                        console.error("獲取專案列表失敗:", error.response || error);
-                        alert("獲取專案列表失敗，請檢查後端服務是否運行以及 API_BASE_URL 是否正確。");
+                        console.error("獲取專案列表失敗:", error.response?.data || error.message);
+                        // alert("獲取專案列表失敗"); // Error already handled by interceptor or shown as authError
                     } finally {
                         this.isLoadingProjects = false;
                     }
                 },
-                async fetchUsers() {
+                async fetchUsers() { // This might be an admin-only endpoint later
+                    if (!this.currentUser) return;
                     try {
-                        const response = await axios.get(`${API_BASE_URL}/users`);
+                        const response = await this.axiosInstance.get(`/users`);
                         this.users = response.data;
                     } catch (error) {
-                        console.error("獲取使用者列表失敗:", error.response || error);
+                        console.error("獲取使用者列表失敗:", error.response?.data || error.message);
+                        // If not admin, this might fail with 403, which is fine.
                     }
                 },
                 async fetchTasksForProject(projectId) {
-                    if (!projectId) return;
+                    if (!projectId || !this.currentUser) return;
                     this.isLoadingTasks = true; 
                     this.projectTasks = []; 
                     this.clearStatusFilter(); 
                     try {
-                        const response = await axios.get(`${API_BASE_URL}/projects/${projectId}/tasks`);
+                        const response = await this.axiosInstance.get(`/projects/${projectId}/tasks`);
                         this.projectTasks = response.data; 
                     } catch (error) {
-                        console.error(`Root: 獲取專案 ${projectId} 的任務失敗:`, error.response || error);
+                        console.error(`獲取專案 ${projectId} 的任務失敗:`, error.response?.data || error.message);
                         this.projectTasks = []; 
-                        alert(`獲取專案 ${this.selectedProject?.name || projectId} 的任務失敗。`);
+                        // alert(`獲取專案任務失敗。`);
                     } finally {
                         this.isLoadingTasks = false; 
                     }
                 },
                 selectProject(project) {
                     if (this.selectedProject && this.selectedProject.id === project.id) {
-                         this.fetchTasksForProject(project.id);
+                         this.fetchTasksForProject(project.id); // Re-fetch on re-click
                         return; 
                     }
                     this.selectedProject = project;
@@ -465,50 +617,35 @@
                     this.currentProject = { name: '', description: '' };
                     this.showProjectModal = true;
                 },
-                closeProjectModal() {
-                    this.showProjectModal = false;
-                },
+                closeProjectModal() { this.showProjectModal = false; },
                 async saveProject() {
-                    if (!this.currentProject.name.trim()) {
-                        alert("專案名稱不能為空！");
-                        return;
-                    }
+                    if (!this.currentProject.name.trim()) { alert("專案名稱不能為空！"); return; }
                     this.isLoadingProjects = true;
                     try {
                         let savedProject;
                         if (this.editingProject) { 
-                            const response = await axios.put(`${API_BASE_URL}/projects/${this.editingProject.id}`, this.currentProject);
+                            const response = await this.axiosInstance.put(`/projects/${this.editingProject.id}`, this.currentProject);
                             savedProject = response.data;
                             const index = this.projects.findIndex(p => p.id === this.editingProject.id);
                             if (index !== -1) this.projects.splice(index, 1, savedProject);
                         } else { 
-                            const response = await axios.post(`${API_BASE_URL}/projects`, this.currentProject);
+                            const response = await this.axiosInstance.post(`/projects`, this.currentProject);
                             savedProject = response.data;
                             this.projects.unshift(savedProject); 
                         }
                         this.selectProject(savedProject); 
                         this.closeProjectModal();
                     } catch (error) {
-                        console.error("儲存專案失敗:", error.response || error);
-                        alert("儲存專案失敗: " + (error.response?.data?.error || error.message));
-                    } finally {
-                        this.isLoadingProjects = false;
-                    }
+                        console.error("儲存專案失敗:", error.response?.data || error.message);
+                        alert("儲存專案失敗: " + (error.response?.data?.error || '未知錯誤'));
+                    } finally { this.isLoadingProjects = false; }
                 },
                 openCreateTaskModal(parentId = null) { 
-                    if (!this.selectedProject) {
-                        alert("請先選擇一個專案！");
-                        return;
-                    }
+                    if (!this.selectedProject) { alert("請先選擇一個專案！"); return; }
                     this.editingTask = null;
                     this.currentTask = { 
-                        name: '', 
-                        description: '', 
-                        assignee_id: null, 
-                        status: '待辦',
-                        project_id: this.selectedProject.id,
-                        parent_id: parentId,
-                        due_date_input: '' 
+                        name: '', description: '', assignee_id: null, status: '待辦',
+                        project_id: this.selectedProject.id, parent_id: parentId, due_date_input: '' 
                     };
                     this.showTaskModal = true;
                 },
@@ -516,74 +653,52 @@
                     this.editingTask = task;
                     let dueDateInput = '';
                     if (task.due_date) {
-                        try {
-                            dueDateInput = new Date(task.due_date).toISOString().split('T')[0];
-                        } catch (e) {
-                            console.error("Error parsing due_date for input:", e);
-                        }
+                        try { dueDateInput = new Date(task.due_date).toISOString().split('T')[0]; } 
+                        catch (e) { console.error("Error parsing due_date for input:", e); }
                     }
-                    this.currentTask = { 
-                        ...task,
-                        due_date_input: dueDateInput 
-                     }; 
+                    this.currentTask = { ...task, due_date_input: dueDateInput }; 
                     this.showTaskModal = true;
                 },
-                closeTaskModal() {
-                    this.showTaskModal = false;
-                },
+                closeTaskModal() { this.showTaskModal = false; },
                 async saveTask() {
-                    if (!this.currentTask.name.trim()) {
-                        alert("任務名稱不能為空！");
-                        return;
-                    }
+                    if (!this.currentTask.name.trim()) { alert("任務名稱不能為空！"); return; }
                     const taskPayload = { ...this.currentTask, due_date: null };
                     if (this.currentTask.due_date_input) {
                         try {
                             const localDate = new Date(this.currentTask.due_date_input + 'T00:00:00');
                             taskPayload.due_date = localDate.toISOString();
-                        } catch (e) {
-                            alert("截止日期格式有誤，請重新選擇。"); return;
-                        }
+                        } catch (e) { alert("截止日期格式有誤"); return; }
                     }
                     delete taskPayload.due_date_input; 
 
                     try {
                         if (this.editingTask) { 
-                            await axios.put(`${API_BASE_URL}/tasks/${this.editingTask.id}`, taskPayload);
+                            await this.axiosInstance.put(`/tasks/${this.editingTask.id}`, taskPayload);
                         } else { 
-                            await axios.post(`${API_BASE_URL}/tasks`, taskPayload);
+                            await this.axiosInstance.post(`/tasks`, taskPayload);
                         }
-                        if (this.selectedProject) {
-                            await this.fetchTasksForProject(this.selectedProject.id);
-                        }
+                        if (this.selectedProject) await this.fetchTasksForProject(this.selectedProject.id);
                         this.closeTaskModal();
                     } catch (error) {
-                        console.error("儲存任務失敗:", error.response || error);
-                        alert("儲存任務失敗: " + (error.response?.data?.error || error.message));
+                        console.error("儲存任務失敗:", error.response?.data || error.message);
+                        alert("儲存任務失敗: " + (error.response?.data?.error || '未知錯誤'));
                     }
                 },
-                async handleUpdateTask(updatedTask) { console.log("Root: handleUpdateTask called"); },
-                async handleAssignUser(task, userId) { console.log(`Root: handleAssignUser called`); },
                 async handleChangeStatus(task, newStatus) {
                     const oldStatus = task.status; 
                     task.status = newStatus; 
                     const updatedTaskData = { ...task, status: newStatus };
                     if (updatedTaskData.due_date && !updatedTaskData.due_date.includes('T')) {
-                        try {
-                            updatedTaskData.due_date = new Date(updatedTaskData.due_date + 'T00:00:00').toISOString();
-                        } catch(e) { /* ignore */ }
+                        try { updatedTaskData.due_date = new Date(updatedTaskData.due_date + 'T00:00:00').toISOString(); } 
+                        catch(e) { /* ignore */ }
                     }
                     try {
-                        await axios.put(`${API_BASE_URL}/tasks/${task.id}`, updatedTaskData);
-                        if (this.selectedProject) { 
-                            await this.fetchTasksForProject(this.selectedProject.id);
-                        }
+                        await this.axiosInstance.put(`/tasks/${task.id}`, updatedTaskData);
+                        if (this.selectedProject) await this.fetchTasksForProject(this.selectedProject.id);
                     } catch (error) {
-                        console.error("更新任務狀態失敗:", error.response || error);
-                        alert("更新任務狀態失敗: " + (error.response?.data?.error || error.message));
-                        if (this.selectedProject) {
-                           await this.fetchTasksForProject(this.selectedProject.id);
-                        }
+                        console.error("更新任務狀態失敗:", error.response?.data || error.message);
+                        alert("更新任務狀態失敗: " + (error.response?.data?.error || '未知錯誤'));
+                        if (this.selectedProject) await this.fetchTasksForProject(this.selectedProject.id);
                     }
                 },
                 showDeleteConfirmation(payload) {
@@ -592,40 +707,29 @@
                     this.showConfirmationModal = true;
                 },
                 handleDeleteCancelled() {
-                    this.showConfirmationModal = false;
-                    this.taskToDeleteId = null;
-                    this.confirmationMessage = '';
+                    this.showConfirmationModal = false; this.taskToDeleteId = null; this.confirmationMessage = '';
                 },
                 handleDeleteConfirmed() {
-                    this.showConfirmationModal = false;
-                    const taskId = this.taskToDeleteId; 
-                    this.taskToDeleteId = null;
-                    this.confirmationMessage = '';
+                    this.showConfirmationModal = false; const taskId = this.taskToDeleteId; 
+                    this.taskToDeleteId = null; this.confirmationMessage = '';
                     if (taskId) this.handleDeleteTask(taskId);
                     else console.error("Root: handleDeleteConfirmed called but taskToDeleteId was null.");
                 },
                 async handleDeleteTask(taskId) {
                     if (!taskId) { console.error("Root: handleDeleteTask called with invalid taskId"); return; }
                     try {
-                        await axios.delete(`${API_BASE_URL}/tasks/${taskId}`);
-                        if (this.selectedProject) {
-                           await this.fetchTasksForProject(this.selectedProject.id);
-                        }
+                        await this.axiosInstance.delete(`/tasks/${taskId}`);
+                        if (this.selectedProject) await this.fetchTasksForProject(this.selectedProject.id);
                     } catch (error) {
-                        console.error(`Root: 刪除任務 ${taskId} 失敗:`, error.response || error.message || error); 
-                        alert("刪除任務失敗: " + (error.response?.data?.error || error.message));
+                        console.error(`Root: 刪除任務 ${taskId} 失敗:`, error.response?.data || error.message); 
+                        alert("刪除任務失敗: " + (error.response?.data?.error || '未知錯誤'));
                     }
                 },
                 selectStatusFilter(status) {
-                    if (this.selectedStatusFilter === status) {
-                        this.clearStatusFilter(); 
-                    } else {
-                        this.selectedStatusFilter = status;
-                    }
+                    if (this.selectedStatusFilter === status) this.clearStatusFilter(); 
+                    else this.selectedStatusFilter = status;
                 },
-                clearStatusFilter() {
-                    this.selectedStatusFilter = null;
-                },
+                clearStatusFilter() { this.selectedStatusFilter = null; },
                 assignedUserNameRoot(userId) { 
                     if (!userId) return '未分配';
                     const user = this.users.find(u => u.id === userId);
@@ -637,13 +741,21 @@
                     return parentTask ? parentTask.name : null;
                 }
             },
-            mounted() {
-                console.log("Root Vue app mounted.");
-                this.fetchProjects();
-                this.fetchUsers();
+            created() { // Renamed from mounted to created for earlier execution
+                console.log("Root Vue app created. Checking auth status...");
+                // 檢查 localStorage 中是否有 token，如果有，嘗試獲取使用者資訊
+                if (this.authToken && this.currentUser) {
+                    // 可以選擇在這裡呼叫 /api/auth/me 來驗證 token 是否仍然有效
+                    // 為了簡化，我們先假設 token 有效，並直接切換到 app view
+                    this.currentView = 'app';
+                    this.fetchInitialAppData();
+                     console.log("User is logged in from localStorage.", this.currentUser);
+                } else {
+                    this.currentView = 'login'; // 預設為登入頁面
+                    console.log("No active session found in localStorage. Directing to login.");
+                }
             }
         });
-
         app.mount('#app');
     </script>
 </body>
