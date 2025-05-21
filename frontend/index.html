@@ -19,12 +19,12 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0,0,0,0.6); /* Slightly darker overlay */
+            background-color: rgba(0,0,0,0.6); 
             display: flex;
             justify-content: center;
             align-items: center;
             z-index: 1000;
-            backdrop-filter: blur(4px); /* Add blur effect */
+            backdrop-filter: blur(4px); 
         }
         .modal-content {
             background-color: white;
@@ -32,16 +32,43 @@
             border-radius: 0.5rem;
             box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
             width: 90%;
-            max-width: 450px; /* Adjusted max width */
+            max-width: 450px; 
         }
         .task-item {
             border-left: 3px solid transparent; 
         }
-        .task-item.status-待辦 { border-left-color: #9ca3af; }
-        .task-item.status-進行中 { border-left-color: #3b82f6; }
-        .task-item.status-已完成 { border-left-color: #10b981; }
+        .task-item.status-待辦 { border-left-color: #9ca3af; /* gray-400 */ }
+        .task-item.status-進行中 { border-left-color: #3b82f6; /* blue-500 */ }
+        .task-item.status-已完成 { border-left-color: #10b981; /* green-500 */ }
 
         [v-cloak] { display: none; }
+
+        .stat-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px; 
+            font-weight: 500;
+            font-size: 0.875rem;
+            line-height: 1.25rem;
+            cursor: pointer; /* 讓標籤看起來可點擊 */
+            transition: background-color 0.2s;
+        }
+        .stat-badge:hover {
+            opacity: 0.8;
+        }
+        .stat-badge-todo { background-color: #e5e7eb; color: #374151; }
+        .stat-badge-inprogress { background-color: #dbeafe; color: #1d4ed8; }
+        .stat-badge-done { background-color: #d1fae5; color: #047857; }
+        .stat-badge-total { background-color: #f3e8ff; color: #6b21a8; cursor: default; } /* 總計通常不可點擊 */
+        .stat-badge.active { /* 選中狀態的樣式 */
+            ring: 2px;
+            ring-offset-2;
+        }
+        .stat-badge-todo.active { box-shadow: 0 0 0 2px #9ca3af; }
+        .stat-badge-inprogress.active { box-shadow: 0 0 0 2px #3b82f6; }
+        .stat-badge-done.active { box-shadow: 0 0 0 2px #10b981; }
+
     </style>
 </head>
 <body class="antialiased">
@@ -71,20 +98,61 @@
 
                 <div class="md:col-span-2 bg-white p-6 rounded-lg shadow">
                     <div v-if="selectedProject">
-                        <div class="flex justify-between items-center mb-6">
+                        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4">
                             <div>
                                 <h2 class="text-3xl font-bold text-gray-800">{{ selectedProject.name }}</h2>
-                                <p class="text-gray-600">{{ selectedProject.description }}</p>
+                                <p class="text-gray-600 mt-1">{{ selectedProject.description }}</p>
                             </div>
-                            <button @click="openCreateTaskModal(null)" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition duration-150">
+                            <button @click="openCreateTaskModal(null)" class="mt-4 sm:mt-0 bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition duration-150 self-start sm:self-center">
                                 新增頂層任務
                             </button>
                         </div>
-                        
+
+                        <div v-if="projectTasks.length > 0" class="mb-6 p-4 bg-gray-50 rounded-lg">
+                            <h3 class="text-lg font-semibold text-gray-700 mb-3">任務統計</h3>
+                            <div class="flex flex-wrap gap-3">
+                                <span class="stat-badge stat-badge-todo" @click="selectStatusFilter('待辦')" :class="{ 'active': selectedStatusFilter === '待辦' }">
+                                    待辦: {{ taskStatistics.todo }}
+                                </span>
+                                <span class="stat-badge stat-badge-inprogress" @click="selectStatusFilter('進行中')" :class="{ 'active': selectedStatusFilter === '進行中' }">
+                                    進行中: {{ taskStatistics.inProgress }}
+                                </span>
+                                <span class="stat-badge stat-badge-done" @click="selectStatusFilter('已完成')" :class="{ 'active': selectedStatusFilter === '已完成' }">
+                                    已完成: {{ taskStatistics.done }}
+                                </span>
+                                <span class="stat-badge stat-badge-total">
+                                    總計: {{ taskStatistics.total }}
+                                </span>
+                            </div>
+                        </div>
+                        <div v-if="selectedStatusFilter" class="mt-2 mb-6 p-4 bg-white rounded-lg shadow-inner border border-gray-200">
+                            <div class="flex justify-between items-center mb-3">
+                                <h3 class="text-xl font-semibold text-gray-700">
+                                    篩選結果：{{ selectedStatusFilter }} ({{ filteredTasks.length }} 筆任務)
+                                </h3>
+                                <button @click="clearStatusFilter" class="text-sm text-blue-600 hover:text-blue-800 font-medium">清除篩選</button>
+                            </div>
+                            <ul v-if="filteredTasks.length > 0" class="space-y-2 max-h-80 overflow-y-auto pr-2">
+                                <li v-for="task in filteredTasks" :key="task.id" 
+                                    :class="['p-3 rounded-md shadow-sm', 
+                                             task.status === '待辦' ? 'bg-gray-100' : 
+                                             task.status === '進行中' ? 'bg-blue-50' : 
+                                             'bg-green-50']">
+                                    <p class="font-medium text-gray-800">{{ task.name }}</p>
+                                    <p class="text-xs text-gray-500 mt-1">
+                                        負責人: {{ assignedUserNameRoot(task.assignee_id) }}
+                                        <span v-if="task.parent_id"> | 上層任務: {{ getParentTaskName(task.parent_id) || '無' }} </span>
+                                        <span v-if="task.due_date"> | 截止: {{ formatDate(task.due_date) }}</span>
+                                    </p>
+                                    <p v-if="task.description" class="text-xs text-gray-600 mt-1 italic">描述: {{ task.description }}</p>
+                                </li>
+                            </ul>
+                            <p v-else class="text-gray-500">此狀態下沒有任務。</p>
+                        </div>
                         <div v-if="isLoadingTasks" class="text-center py-4">
                             <p class="text-gray-500">載入任務中...</p>
                         </div>
-                        <div v-else-if="projectTasks.length > 0" class="space-y-4">
+                        <div v-else-if="projectTasks.length > 0 && !selectedStatusFilter" class="space-y-4"> 
                             <task-node 
                                 v-for="task_item in rootTasks" :key="task_item.id" 
                                 :task="task_item"
@@ -92,14 +160,14 @@
                                 :users="users"
                                 :level="0"
                                 @update-task="handleUpdateTask"
-                                @request-delete-confirmation="showDeleteConfirmation" @create-sub-task="openCreateTaskModal"
+                                @request-delete-confirmation="showDeleteConfirmation" 
+                                @create-sub-task="openCreateTaskModal"
                                 @assign-user="handleAssignUser"
                                 @change-status="handleChangeStatus">
                             </task-node>
                         </div>
-                        <p v-else class="text-gray-500 mt-4">此專案尚無任務。點擊 "新增頂層任務" 來開始。</p>
-
-                    </div>
+                         <p v-else-if="projectTasks.length === 0 && !selectedStatusFilter" class="text-gray-500 mt-4">此專案尚無任務。點擊 "新增頂層任務" 來開始。</p>
+                         </div>
                     <div v-else class="text-center py-10">
                         <p class="text-xl text-gray-500">請從左側選擇一個專案以查看其任務。</p>
                     </div>
@@ -145,6 +213,10 @@
                             <option :value="null">未分配</option>
                             <option v-for="user in users" :key="user.id" :value="user.id">{{ user.name }}</option>
                         </select>
+                    </div>
+                    <div class="mb-4"> 
+                        <label for="taskDueDate" class="block text-sm font-medium text-gray-700">截止日期</label>
+                        <input type="date" id="taskDueDate" v-model="currentTask.due_date_input" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
                     </div>
                     <div class="mb-6">
                         <label for="taskStatus" class="block text-sm font-medium text-gray-700">狀態</label>
@@ -192,7 +264,8 @@
                 <div class="flex flex-col sm:flex-row items-end sm:items-center space-y-2 sm:space-y-0 sm:space-x-2 mt-2 sm:mt-0 flex-shrink-0">
                      <button @click="$emit('create-sub-task', task.id)" title="新增子任務" class="text-xs bg-blue-500 hover:bg-blue-600 text-white py-1 px-2 rounded transition duration-150">新增子任務</button>
                      <button @click="editThisTask" title="編輯任務" class="text-xs bg-yellow-500 hover:bg-yellow-600 text-white py-1 px-2 rounded transition duration-150">編輯</button>
-                     <button @click="requestDeleteConfirmation" title="刪除任務" class="text-xs bg-red-500 hover:bg-red-600 text-white py-1 px-2 rounded transition duration-150">刪除</button> </div>
+                     <button @click="requestDeleteConfirmation" title="刪除任務" class="text-xs bg-red-500 hover:bg-red-600 text-white py-1 px-2 rounded transition duration-150">刪除</button>
+                </div>
             </div>
             <div v-if="childTasks.length > 0" class="mt-3 pl-4 border-l-2 border-gray-200">
                 <task-node
@@ -202,7 +275,8 @@
                     :users="users"
                     :level="level + 1"
                     @update-task="(updatedTask) => $emit('update-task', updatedTask)"
-                    @request-delete-confirmation="(payload) => $emit('request-delete-confirmation', payload)" @create-sub-task="(parentId) => $emit('create-sub-task', parentId)"
+                    @request-delete-confirmation="(payload) => $emit('request-delete-confirmation', payload)" 
+                    @create-sub-task="(parentId) => $emit('create-sub-task', parentId)"
                     @assign-user="(task, userId) => $emit('assign-user', task, userId)"
                     @change-status="(task, status) => $emit('change-status', task, status)">
                 </task-node>
@@ -211,7 +285,8 @@
     </script>
 
     <script type="text/x-template" id="confirmation-modal-template">
-        <div class="modal-overlay" @click.self="$emit('cancel')"> <div class="modal-content">
+        <div class="modal-overlay" @click.self="$emit('cancel')"> 
+            <div class="modal-content">
                 <h3 class="text-lg font-medium leading-6 text-gray-900 mb-4">確認操作</h3>
                 <div class="mt-2">
                     <p class="text-sm text-gray-600">{{ message }}</p>
@@ -232,7 +307,6 @@
     <script>
         const API_BASE_URL = 'https://pmt.thm.com.tw/api'; 
 
-        // --- NEW: Confirmation Modal Component ---
         const ConfirmationModal = {
             name: 'ConfirmationModal',
             template: '#confirmation-modal-template',
@@ -240,12 +314,11 @@
             emits: ['confirm', 'cancel']
         };
 
-        // --- TaskNode Component ---
         const TaskNode = {
             name: 'TaskNode', 
             template: '#task-node-template',
             props: ['task', 'allTasks', 'users', 'level'],
-            emits: ['update-task', 'request-delete-confirmation', 'create-sub-task', 'assign-user', 'change-status'], // Changed delete-task to request-delete-confirmation
+            emits: ['update-task', 'request-delete-confirmation', 'create-sub-task', 'assign-user', 'change-status'],
             computed: {
                 childTasks() {
                     if (!Array.isArray(this.allTasks)) return [];
@@ -259,16 +332,14 @@
                     const user = this.users.find(u => u.id === userId);
                     return user ? user.name : '未知用戶';
                 },
-                formatDate(dateString) {
+                formatDate(dateString) { // This formatDate is for TaskNode
                     if (!dateString) return '';
-                    return new Date(dateString).toLocaleDateString();
+                    return new Date(dateString).toLocaleDateString(); 
                 },
                 editThisTask() {
                     this.$root.openEditTaskModal(this.task);
                 },
-                requestDeleteConfirmation() { // Renamed from confirmDeleteTask
-                    console.log(`[TaskNode ${this.task.name}] requestDeleteConfirmation called for taskId: ${this.task.id}`); 
-                    // Emit event with task details needed for confirmation message and actual deletion
+                requestDeleteConfirmation() { 
                     this.$emit('request-delete-confirmation', { id: this.task.id, name: this.task.name }); 
                 },
                 triggerChangeStatus(task, status) {
@@ -277,11 +348,10 @@
             }
         };
 
-        // --- Root Vue App ---
         const app = Vue.createApp({
             components: {
                 TaskNode,
-                ConfirmationModal // Register the new component
+                ConfirmationModal 
             },
             data() {
                 return {
@@ -296,15 +366,23 @@
 
                     showTaskModal: false,
                     editingTask: null, 
-                    currentTask: { name: '', description: '', assignee_id: null, status: '待辦', parent_id: null },
+                    currentTask: { 
+                        name: '', 
+                        description: '', 
+                        assignee_id: null, 
+                        status: '待辦', 
+                        parent_id: null,
+                        project_id: null, 
+                        due_date_input: '' 
+                    },
                     
                     isLoadingProjects: false, 
                     isLoadingTasks: false,
 
-                    // --- NEW: State for Confirmation Modal ---
                     showConfirmationModal: false,
                     confirmationMessage: '',
-                    taskToDeleteId: null 
+                    taskToDeleteId: null,
+                    selectedStatusFilter: null, 
                 };
             },
             computed: {
@@ -312,18 +390,40 @@
                     if (!Array.isArray(this.projectTasks)) return [];
                     return this.projectTasks.filter(task => !task.parent_id)
                                          .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+                },
+                taskStatistics() {
+                    const stats = { todo: 0, inProgress: 0, done: 0, total: 0 };
+                    if (!Array.isArray(this.projectTasks)) return stats;
+                    this.projectTasks.forEach(task => {
+                        stats.total++;
+                        if (task.status === '待辦') stats.todo++;
+                        else if (task.status === '進行中') stats.inProgress++;
+                        else if (task.status === '已完成') stats.done++;
+                    });
+                    return stats;
+                },
+                filteredTasks() {
+                    if (!this.selectedStatusFilter || !Array.isArray(this.projectTasks)) {
+                        return [];
+                    }
+                    return this.projectTasks.filter(task => task.status === this.selectedStatusFilter)
+                                           .sort((a,b) => new Date(a.created_at) - new Date(b.created_at));
                 }
             },
             methods: {
-                // --- API Calls (fetchProjects, fetchUsers, fetchTasksForProject) remain the same ---
+                // ADDED formatDate to root app methods
+                formatDate(dateString) { // This formatDate is for the root app (filtered list)
+                    if (!dateString) return '';
+                    return new Date(dateString).toLocaleDateString(); 
+                },
                  async fetchProjects() {
                     this.isLoadingProjects = true;
                     try {
                         const response = await axios.get(`${API_BASE_URL}/projects`);
                         this.projects = response.data;
                     } catch (error) {
-                        console.error("獲取專案列表失敗:", error);
-                        alert("獲取專案列表失敗，請檢查後端服務是否運行。");
+                        console.error("獲取專案列表失敗:", error.response || error);
+                        alert("獲取專案列表失敗，請檢查後端服務是否運行以及 API_BASE_URL 是否正確。");
                     } finally {
                         this.isLoadingProjects = false;
                     }
@@ -333,30 +433,28 @@
                         const response = await axios.get(`${API_BASE_URL}/users`);
                         this.users = response.data;
                     } catch (error) {
-                        console.error("獲取使用者列表失敗:", error);
+                        console.error("獲取使用者列表失敗:", error.response || error);
                     }
                 },
                 async fetchTasksForProject(projectId) {
                     if (!projectId) return;
-                    console.log(`Root: Fetching tasks for project ID: ${projectId}`);
                     this.isLoadingTasks = true; 
                     this.projectTasks = []; 
+                    this.clearStatusFilter(); 
                     try {
                         const response = await axios.get(`${API_BASE_URL}/projects/${projectId}/tasks`);
                         this.projectTasks = response.data; 
-                        console.log(`Root: projectTasks updated for ${projectId}. Length: ${this.projectTasks.length}`);
                     } catch (error) {
-                        console.error(`Root: 獲取專案 ${projectId} 的任務失敗:`, error);
+                        console.error(`Root: 獲取專案 ${projectId} 的任務失敗:`, error.response || error);
                         this.projectTasks = []; 
+                        alert(`獲取專案 ${this.selectedProject?.name || projectId} 的任務失敗。`);
                     } finally {
                         this.isLoadingTasks = false; 
                     }
                 },
-                // --- Project Operations (selectProject, openCreateProjectModal, closeProjectModal, saveProject) remain the same ---
                 selectProject(project) {
-                    console.log("Root: Selected project:", project.name, project.id);
-                    if (this.selectedProject && this.selectedProject.id === project.id && this.projectTasks.length > 0) {
-                        console.log("Root: Project already selected and tasks loaded. Skipping re-fetch.");
+                    if (this.selectedProject && this.selectedProject.id === project.id) {
+                         this.fetchTasksForProject(project.id);
                         return; 
                     }
                     this.selectedProject = project;
@@ -391,14 +489,13 @@
                         this.selectProject(savedProject); 
                         this.closeProjectModal();
                     } catch (error) {
-                        console.error("儲存專案失敗:", error);
+                        console.error("儲存專案失敗:", error.response || error);
                         alert("儲存專案失敗: " + (error.response?.data?.error || error.message));
                     } finally {
                         this.isLoadingProjects = false;
                     }
                 },
-                // --- Task Operations (openCreateTaskModal, openEditTaskModal, closeTaskModal, saveTask) remain the same ---
-                 openCreateTaskModal(parentId = null) { 
+                openCreateTaskModal(parentId = null) { 
                     if (!this.selectedProject) {
                         alert("請先選擇一個專案！");
                         return;
@@ -410,13 +507,25 @@
                         assignee_id: null, 
                         status: '待辦',
                         project_id: this.selectedProject.id,
-                        parent_id: parentId 
+                        parent_id: parentId,
+                        due_date_input: '' 
                     };
                     this.showTaskModal = true;
                 },
                 openEditTaskModal(task) { 
                     this.editingTask = task;
-                    this.currentTask = { ...task }; 
+                    let dueDateInput = '';
+                    if (task.due_date) {
+                        try {
+                            dueDateInput = new Date(task.due_date).toISOString().split('T')[0];
+                        } catch (e) {
+                            console.error("Error parsing due_date for input:", e);
+                        }
+                    }
+                    this.currentTask = { 
+                        ...task,
+                        due_date_input: dueDateInput 
+                     }; 
                     this.showTaskModal = true;
                 },
                 closeTaskModal() {
@@ -427,98 +536,106 @@
                         alert("任務名稱不能為空！");
                         return;
                     }
+                    const taskPayload = { ...this.currentTask, due_date: null };
+                    if (this.currentTask.due_date_input) {
+                        try {
+                            const localDate = new Date(this.currentTask.due_date_input + 'T00:00:00');
+                            taskPayload.due_date = localDate.toISOString();
+                        } catch (e) {
+                            alert("截止日期格式有誤，請重新選擇。"); return;
+                        }
+                    }
+                    delete taskPayload.due_date_input; 
+
                     try {
                         if (this.editingTask) { 
-                            await axios.put(`${API_BASE_URL}/tasks/${this.editingTask.id}`, this.currentTask);
+                            await axios.put(`${API_BASE_URL}/tasks/${this.editingTask.id}`, taskPayload);
                         } else { 
-                            await axios.post(`${API_BASE_URL}/tasks`, this.currentTask);
+                            await axios.post(`${API_BASE_URL}/tasks`, taskPayload);
                         }
                         if (this.selectedProject) {
                             await this.fetchTasksForProject(this.selectedProject.id);
                         }
                         this.closeTaskModal();
                     } catch (error) {
-                        console.error("儲存任務失敗:", error);
+                        console.error("儲存任務失敗:", error.response || error);
                         alert("儲存任務失敗: " + (error.response?.data?.error || error.message));
                     }
                 },
-                // --- Task Update/Assign/Status methods remain the same ---
-                 async handleUpdateTask(updatedTask) { 
-                    console.log("Root: handleUpdateTask called with:", updatedTask); 
-                },
-                 async handleAssignUser(task, userId) { 
-                    console.log(`Root: handleAssignUser called for task ${task.id} to user ${userId}`); 
-                },
+                async handleUpdateTask(updatedTask) { console.log("Root: handleUpdateTask called"); },
+                async handleAssignUser(task, userId) { console.log(`Root: handleAssignUser called`); },
                 async handleChangeStatus(task, newStatus) {
                     const oldStatus = task.status; 
                     task.status = newStatus; 
-
                     const updatedTaskData = { ...task, status: newStatus };
+                    if (updatedTaskData.due_date && !updatedTaskData.due_date.includes('T')) {
+                        try {
+                            updatedTaskData.due_date = new Date(updatedTaskData.due_date + 'T00:00:00').toISOString();
+                        } catch(e) { /* ignore */ }
+                    }
                     try {
                         await axios.put(`${API_BASE_URL}/tasks/${task.id}`, updatedTaskData);
-                        if (this.selectedProject) {
+                        if (this.selectedProject) { 
                             await this.fetchTasksForProject(this.selectedProject.id);
                         }
                     } catch (error) {
-                        console.error("更新任務狀態失敗:", error);
+                        console.error("更新任務狀態失敗:", error.response || error);
                         alert("更新任務狀態失敗: " + (error.response?.data?.error || error.message));
-                        task.status = oldStatus; 
                         if (this.selectedProject) {
                            await this.fetchTasksForProject(this.selectedProject.id);
                         }
                     }
                 },
-
-                // --- NEW: Methods for Custom Confirmation Modal ---
                 showDeleteConfirmation(payload) {
-                    console.log("Root: showDeleteConfirmation called with payload:", payload);
                     this.taskToDeleteId = payload.id;
                     this.confirmationMessage = `您確定要刪除任務 "${payload.name}" 及其所有子任務嗎？此操作無法復原。`;
                     this.showConfirmationModal = true;
                 },
                 handleDeleteCancelled() {
-                    console.log("Root: handleDeleteCancelled called.");
                     this.showConfirmationModal = false;
                     this.taskToDeleteId = null;
                     this.confirmationMessage = '';
                 },
                 handleDeleteConfirmed() {
-                    console.log("Root: handleDeleteConfirmed called. Task ID to delete:", this.taskToDeleteId);
                     this.showConfirmationModal = false;
-                    const taskId = this.taskToDeleteId; // Store it before resetting
+                    const taskId = this.taskToDeleteId; 
                     this.taskToDeleteId = null;
                     this.confirmationMessage = '';
-                    if (taskId) {
-                        this.handleDeleteTask(taskId); // Call the actual delete logic
-                    } else {
-                        console.error("Root: handleDeleteConfirmed called but taskToDeleteId was null.");
-                    }
+                    if (taskId) this.handleDeleteTask(taskId);
+                    else console.error("Root: handleDeleteConfirmed called but taskToDeleteId was null.");
                 },
-
-                // --- Actual Delete Logic (now called by handleDeleteConfirmed) ---
                 async handleDeleteTask(taskId) {
-                    console.log(`Root: handleDeleteTask called for taskId: ${taskId}`); 
-                    if (!taskId) {
-                        console.error("Root: handleDeleteTask called with invalid taskId:", taskId);
-                        return;
-                    }
-                    // Optional: Add loading state specifically for deletion
-                    // this.isDeletingTask = true; 
+                    if (!taskId) { console.error("Root: handleDeleteTask called with invalid taskId"); return; }
                     try {
-                        console.log(`Root: Sending DELETE request for taskId: ${taskId}`); 
-                        const response = await axios.delete(`${API_BASE_URL}/tasks/${taskId}`);
-                        console.log(`Root: DELETE request for taskId: ${taskId} successful. Response:`, response.data); 
+                        await axios.delete(`${API_BASE_URL}/tasks/${taskId}`);
                         if (this.selectedProject) {
                            await this.fetchTasksForProject(this.selectedProject.id);
-                           console.log(`Root: Tasks refetched for project ${this.selectedProject.id} after deletion.`); 
                         }
                     } catch (error) {
                         console.error(`Root: 刪除任務 ${taskId} 失敗:`, error.response || error.message || error); 
                         alert("刪除任務失敗: " + (error.response?.data?.error || error.message));
-                    } finally {
-                         // this.isDeletingTask = false;
                     }
                 },
+                selectStatusFilter(status) {
+                    if (this.selectedStatusFilter === status) {
+                        this.clearStatusFilter(); 
+                    } else {
+                        this.selectedStatusFilter = status;
+                    }
+                },
+                clearStatusFilter() {
+                    this.selectedStatusFilter = null;
+                },
+                assignedUserNameRoot(userId) { 
+                    if (!userId) return '未分配';
+                    const user = this.users.find(u => u.id === userId);
+                    return user ? user.name : '未知用戶';
+                },
+                getParentTaskName(parentId) { 
+                    if (!parentId || !Array.isArray(this.projectTasks)) return null;
+                    const parentTask = this.projectTasks.find(t => t.id === parentId);
+                    return parentTask ? parentTask.name : null;
+                }
             },
             mounted() {
                 console.log("Root Vue app mounted.");
