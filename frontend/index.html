@@ -11,7 +11,7 @@
     <style>
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #f3f4f6; /* Tailwind gray-100 */
+            background-color: #f3f4f6; 
         }
         .modal-overlay {
             position: fixed;
@@ -25,6 +25,7 @@
             align-items: center;
             z-index: 1000;
             backdrop-filter: blur(4px); 
+            overflow-y: auto; 
         }
         .modal-content {
             background-color: white;
@@ -32,7 +33,9 @@
             border-radius: 0.5rem;
             box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
             width: 90%;
-            max-width: 450px; 
+            max-width: 500px; 
+            margin-top: 2rem; 
+            margin-bottom: 2rem;
         }
         .task-item {
             border-left: 3px solid transparent; 
@@ -69,32 +72,100 @@
         .stat-badge-inprogress.active { box-shadow: 0 0 0 2px #3b82f6; }
         .stat-badge-done.active { box-shadow: 0 0 0 2px #10b981; }
 
-        .auth-form-container {
-            max-width: 400px;
-            margin: 4rem auto;
+        .auth-form-container, .profile-container, .admin-management-container {
+            max-width: 700px; 
+            margin: 2rem auto; 
             padding: 2rem;
             background-color: white;
             border-radius: 0.5rem;
             box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
         }
+        .nav-link {
+            padding: 0.5rem 0.75rem;
+            border-radius: 0.375rem;
+            transition: background-color 0.2s;
+        }
+        .nav-link:hover {
+            background-color: #f3f4f6; 
+        }
+        .nav-link.active {
+            background-color: #e0e7ff; 
+            color: #4338ca; 
+            font-weight: 500;
+        }
+        .table-auto th, .table-auto td {
+            padding: 0.75rem;
+            border-bottom: 1px solid #e5e7eb; 
+            text-align: left;
+            font-size: 0.875rem; 
+        }
+        .table-auto th {
+            background-color: #f9fafb; 
+            font-weight: 600;
+            color: #374151; 
+        }
+        .table-auto tbody tr:hover {
+            background-color: #f9fafb; 
+        }
+        .action-button {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.75rem; 
+            border-radius: 0.25rem;
+            margin-right: 0.25rem;
+            transition: background-color 0.15s ease-in-out;
+        }
+        .action-button-edit {
+            background-color: #e0e7ff; color: #4338ca;
+        }
+        .action-button-edit:hover {
+             background-color: #c7d2fe;
+        }
+         .action-button-danger {
+            background-color: #fee2e2; color: #b91c1c;
+        }
+        .action-button-danger:hover {
+             background-color: #fecaca;
+        }
+        .project-list-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem;
+            border-radius: 0.375rem;
+            cursor: pointer;
+            transition: background-color 0.15s ease-in-out;
+        }
+        .project-list-item-name {
+            flex-grow: 1;
+        }
     </style>
 </head>
 <body class="antialiased">
     <div id="app" v-cloak class="min-h-screen bg-gray-100">
-        <nav class="bg-white shadow-sm">
-            <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div class="flex items-center justify-between h-16">
+        <nav class="bg-white shadow-sm sticky top-0 z-50">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"> <div class="flex items-center justify-between h-16">
                     <div class="flex items-center">
-                        <span class="font-bold text-xl text-blue-600">專案管理系統</span>
+                        <button @click="navigateTo('app')" class="font-bold text-xl text-blue-600 focus:outline-none">專案管理系統</button>
                     </div>
-                    <div class="flex items-center">
-                        <div v-if="currentUser" class="flex items-center space-x-4">
-                            <span class="text-gray-700">你好, {{ currentUser.name }}</span>
-                            <button @click="logout" class="text-sm font-medium text-red-600 hover:text-red-800">登出</button>
+                    <div class="flex items-center space-x-3">
+                        <div v-if="currentUser" class="flex items-center space-x-3">
+                            <button @click="navigateTo('profile')" 
+                                    :class="['nav-link text-sm font-medium text-gray-700 hover:text-gray-900', currentView === 'profile' ? 'active' : '']">
+                                個人資料 ({{ currentUser.name }})
+                            </button>
+                            <button v-if="isAdmin" @click="navigateTo('adminUsers')"
+                                    :class="['nav-link text-sm font-medium text-gray-700 hover:text-gray-900', currentView === 'adminUsers' ? 'active' : '']">
+                                使用者管理
+                            </button>
+                            <button v-if="isAdmin" @click="navigateTo('adminDepartments')"
+                                    :class="['nav-link text-sm font-medium text-gray-700 hover:text-gray-900', currentView === 'adminDepartments' ? 'active' : '']">
+                                部門管理
+                            </button>
+                            <button @click="logout()" class="nav-link text-sm font-medium text-red-600 hover:bg-red-50 hover:text-red-800">登出</button>
                         </div>
-                        <div v-else class="space-x-4">
-                            <button @click="currentView = 'login'" class="text-sm font-medium text-gray-600 hover:text-gray-900">登入</button>
-                            <button @click="currentView = 'register'" class="text-sm font-medium text-blue-600 hover:text-blue-800">註冊</button>
+                        <div v-else class="space-x-3">
+                            <button @click="navigateTo('login')" :class="['nav-link text-sm font-medium', currentView === 'login' ? 'active text-blue-600' : 'text-gray-600 hover:text-gray-900']">登入</button>
+                            <button @click="navigateTo('register')" :class="['nav-link text-sm font-medium', currentView === 'register' ? 'active text-blue-600' : 'text-blue-600 hover:text-blue-800']">註冊</button>
                         </div>
                     </div>
                 </div>
@@ -114,10 +185,12 @@
                         <input type="password" id="loginPassword" v-model="loginForm.password" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
                     </div>
                     <p v-if="authError" class="text-red-500 text-sm mb-4">{{ authError }}</p>
-                    <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-md shadow-sm transition duration-150">登入</button>
+                    <button type="submit" :disabled="isLoadingAuth" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-md shadow-sm transition duration-150 disabled:opacity-50">
+                        {{ isLoadingAuth ? '登入中...' : '登入' }}
+                    </button>
                 </form>
                 <p class="mt-4 text-center text-sm">
-                    還沒有帳號? <button @click="currentView = 'register'" class="font-medium text-blue-600 hover:text-blue-500">立即註冊</button>
+                    還沒有帳號? <button @click="navigateTo('register')" class="font-medium text-blue-600 hover:text-blue-500">立即註冊</button>
                 </p>
             </div>
 
@@ -132,21 +205,160 @@
                         <label for="registerEmail" class="block text-sm font-medium text-gray-700">電子郵件</label>
                         <input type="email" id="registerEmail" v-model="registerForm.email" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
                     </div>
-                    <div class="mb-6">
-                        <label for="registerPassword" class="block text-sm font-medium text-gray-700">密碼</label>
+                    <div class="mb-4"> 
+                        <label for="registerDepartment" class="block text-sm font-medium text-gray-700">部門 (可選)</label>
+                        <input type="text" id="registerDepartment" v-model="registerForm.department" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div class="mb-4">
+                        <label for="registerPassword" class="block text-sm font-medium text-gray-700">密碼 (至少6位)</label>
                         <input type="password" id="registerPassword" v-model="registerForm.password" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
                     </div>
+                    <div class="mb-6"> 
+                        <label for="registerConfirmPassword" class="block text-sm font-medium text-gray-700">確認密碼</label>
+                        <input type="password" id="registerConfirmPassword" v-model="registerForm.confirmPassword" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
                      <p v-if="authError" class="text-red-500 text-sm mb-4">{{ authError }}</p>
-                    <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-md shadow-sm transition duration-150">註冊</button>
+                    <button type="submit" :disabled="isLoadingAuth" class="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-md shadow-sm transition duration-150 disabled:opacity-50">
+                         {{ isLoadingAuth ? '註冊中...' : '註冊' }}
+                    </button>
                 </form>
                  <p class="mt-4 text-center text-sm">
-                    已經有帳號了? <button @click="currentView = 'login'" class="font-medium text-blue-600 hover:text-blue-500">前往登入</button>
+                    已經有帳號了? <button @click="navigateTo('login')" class="font-medium text-blue-600 hover:text-blue-500">前往登入</button>
                 </p>
+            </div>
+
+            <div v-if="currentView === 'profile' && currentUser" class="profile-container">
+                 <h2 class="text-2xl font-bold text-gray-800 mb-6">個人資料</h2>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-500">名稱</label>
+                        <p class="mt-1 text-lg text-gray-900">{{ currentUser.name }}</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-500">電子郵件</label>
+                        <p class="mt-1 text-lg text-gray-900">{{ currentUser.email }}</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-500">部門</label>
+                        <p class="mt-1 text-lg text-gray-900">{{ currentUser.department ? currentUser.department.name : '未設定' }}</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-500">權限群組</label>
+                        <div class="mt-1">
+                            <span v-if="currentUser.groups && currentUser.groups.length > 0" 
+                                  v-for="group in currentUser.groups" :key="group.id"
+                                  class="inline-block bg-blue-100 text-blue-800 text-xs font-medium mr-2 px-2.5 py-0.5 rounded-full">
+                                {{ group.name }}
+                            </span>
+                            <span v-else class="text-gray-700">無</span>
+                        </div>
+                    </div>
+                </div>
+
+                <hr class="my-8">
+
+                <h3 class="text-xl font-semibold text-gray-800 mb-4">修改密碼</h3>
+                <form @submit.prevent="handleChangePassword">
+                    <div class="mb-4">
+                        <label for="currentPassword" class="block text-sm font-medium text-gray-700">目前密碼</label>
+                        <input type="password" id="currentPassword" v-model="changePasswordForm.current_password" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                    </div>
+                    <div class="mb-4">
+                        <label for="newPassword" class="block text-sm font-medium text-gray-700">新密碼 (至少6位)</label>
+                        <input type="password" id="newPassword" v-model="changePasswordForm.new_password" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                    </div>
+                    <div class="mb-6">
+                        <label for="confirmNewPassword" class="block text-sm font-medium text-gray-700">確認新密碼</label>
+                        <input type="password" id="confirmNewPassword" v-model="changePasswordForm.confirm_new_password" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                    </div>
+                    <p v-if="profileMessage.text" :class="['text-sm mb-4', profileMessage.type === 'success' ? 'text-green-600' : 'text-red-600']">{{ profileMessage.text }}</p>
+                    <button type="submit" :disabled="isLoadingProfile" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-md shadow-sm transition duration-150 disabled:opacity-50">
+                        {{ isLoadingProfile ? '更新中...' : '更新密碼' }}
+                    </button>
+                </form>
+            </div>
+
+            <div v-if="currentView === 'adminUsers' && currentUser && isAdmin" class="admin-management-container">
+                 <h2 class="text-2xl font-bold text-gray-800 mb-6">使用者管理</h2>
+                 <div v-if="isLoadingAdminUsers" class="text-center py-4">
+                     <p class="text-gray-500">載入使用者列表中...</p>
+                 </div>
+                 <div v-else-if="adminUsersList.length > 0" class="overflow-x-auto">
+                    <table class="table-auto w-full">
+                        <thead>
+                            <tr>
+                                <th class="px-4 py-2">名稱</th>
+                                <th class="px-4 py-2">Email</th>
+                                <th class="px-4 py-2">部門</th>
+                                <th class="px-4 py-2">狀態</th>
+                                <th class="px-4 py-2">群組</th>
+                                <th class="px-4 py-2">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            <tr v-for="user in adminUsersList" :key="user.id">
+                                <td class="px-4 py-2">{{ user.name }}</td>
+                                <td class="px-4 py-2">{{ user.email }}</td>
+                                <td class="px-4 py-2">{{ user.department ? user.department.name : '-' }}</td>
+                                <td class="px-4 py-2">
+                                    <span :class="[user.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800', 'px-2 inline-flex text-xs leading-5 font-semibold rounded-full']">
+                                        {{ user.is_active ? '啟用' : '停用' }}
+                                    </span>
+                                </td>
+                                <td class="px-4 py-2">
+                                    <span v-if="user.groups && user.groups.length > 0">
+                                        <span v-for="(group, index) in user.groups" :key="group.id" class="text-xs">
+                                            {{ group.name }}{{ index < user.groups.length - 1 ? ', ' : '' }}
+                                        </span>
+                                    </span>
+                                    <span v-else>-</span>
+                                </td>
+                                <td class="px-4 py-2 whitespace-nowrap">
+                                    <button @click="openAdminEditUserModal(user)" class="action-button action-button-edit">編輯</button>
+                                    <button @click="openAdminResetPasswordModal(user)" class="action-button action-button-danger">重設密碼</button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                 </div>
+                 <p v-else class="text-gray-500">目前沒有使用者。</p>
+            </div>
+
+            <div v-if="currentView === 'adminDepartments' && currentUser && isAdmin" class="admin-management-container">
+                 <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold text-gray-800">部門管理</h2>
+                    <button @click="openAdminEditDepartmentModal(null)" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition duration-150">
+                        新增部門
+                    </button>
+                 </div>
+                 <div v-if="isLoadingAdminDepartments" class="text-center py-4">
+                     <p class="text-gray-500">載入部門列表中...</p>
+                 </div>
+                 <div v-else-if="allDepartments.length > 0" class="overflow-x-auto">
+                    <table class="table-auto w-full">
+                        <thead>
+                            <tr>
+                                <th class="px-4 py-2">部門名稱</th>
+                                <th class="px-4 py-2">描述</th>
+                                <th class="px-4 py-2">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            <tr v-for="dept in allDepartments" :key="dept.id">
+                                <td class="px-4 py-2">{{ dept.name }}</td>
+                                <td class="px-4 py-2">{{ dept.description || '-' }}</td>
+                                <td class="px-4 py-2 whitespace-nowrap">
+                                    <button @click="openAdminEditDepartmentModal(dept)" class="action-button action-button-edit">編輯</button>
+                                    <button @click="handleAdminDeleteDepartment(dept.id, dept.name)" class="action-button action-button-danger">刪除</button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                 </div>
+                 <p v-else class="text-gray-500">目前沒有部門。</p>
             </div>
             
             <div v-if="currentView === 'app' && currentUser" class="max-w-6xl mx-auto">
-                 <header class="mb-8">
-                    </header>
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div class="md:col-span-1 bg-white p-6 rounded-lg shadow">
                         <div class="flex justify-between items-center mb-4">
@@ -157,9 +369,13 @@
                         </div>
                         <ul v-if="projects.length > 0" class="space-y-2">
                             <li v-for="project in projects" :key="project.id"
-                                @click="selectProject(project)"
-                                :class="['p-3 rounded-md cursor-pointer transition-colors duration-150', selectedProject && selectedProject.id === project.id ? 'bg-blue-100 text-blue-700 font-semibold' : 'hover:bg-gray-200']">
-                                {{ project.name }}
+                                class="project-list-item"
+                                :class="[selectedProject && selectedProject.id === project.id ? 'bg-blue-100 text-blue-700 font-semibold' : 'hover:bg-gray-200']">
+                                <span @click="selectProject(project)" class="project-list-item-name">{{ project.name }}</span>
+                                <div class="flex-shrink-0 ml-2 space-x-1">
+                                     <button @click.stop="openEditProjectModal(project)" title="編輯專案" class="action-button action-button-edit text-xs">編輯</button>
+                                     <button @click.stop="confirmDeleteProject(project)" title="刪除專案" class="action-button action-button-danger text-xs">刪除</button>
+                                </div>
                             </li>
                         </ul>
                         <p v-else class="text-gray-500">目前沒有專案。</p>
@@ -176,7 +392,6 @@
                                     新增頂層任務
                                 </button>
                             </div>
-
                             <div v-if="projectTasks.length > 0" class="mb-6 p-4 bg-gray-50 rounded-lg">
                                 <h3 class="text-lg font-semibold text-gray-700 mb-3">任務統計</h3>
                                 <div class="flex flex-wrap gap-3">
@@ -194,7 +409,6 @@
                                     </span>
                                 </div>
                             </div>
-                            
                             <div v-if="selectedStatusFilter" class="mt-2 mb-6 p-4 bg-white rounded-lg shadow-inner border border-gray-200">
                                 <div class="flex justify-between items-center mb-3">
                                     <h3 class="text-xl font-semibold text-gray-700">
@@ -219,7 +433,6 @@
                                 </ul>
                                 <p v-else class="text-gray-500">此狀態下沒有任務。</p>
                             </div>
-                            
                             <div v-if="isLoadingTasks" class="text-center py-4">
                                 <p class="text-gray-500">載入任務中...</p>
                             </div>
@@ -245,8 +458,9 @@
                     </div>
                 </div>
             </div>
-            <div v-else-if="currentView !== 'login' && currentView !== 'register'">
-                <p class="text-center text-xl text-gray-500 py-10">請先登入以使用專案管理系統。</p>
+            <div v-else-if="currentView !== 'login' && currentView !== 'register' && !currentUser" class="text-center py-10">
+                <p class="text-xl text-gray-500">請先登入以使用專案管理系統。</p>
+                <button @click="navigateTo('login')" class="mt-4 bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg">前往登入</button>
             </div>
         </div>
 
@@ -264,7 +478,9 @@
                     </div>
                     <div class="flex justify-end space-x-3">
                         <button type="button" @click="closeProjectModal" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 hover:bg-gray-300 rounded-md">取消</button>
-                        <button type="submit" class="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md">{{ editingProject ? '儲存變更' : '建立專案' }}</button>
+                        <button type="submit" :disabled="isLoadingProjects" class="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md disabled:opacity-50">
+                           {{ isLoadingProjects ? '儲存中...' : (editingProject ? '儲存變更' : '建立專案') }}
+                        </button>
                     </div>
                 </form>
             </div>
@@ -315,6 +531,101 @@
             @confirm="handleDeleteConfirmed"
             @cancel="handleDeleteCancelled">
         </confirmation-modal>
+
+        <div v-if="showAdminEditUserModal" class="modal-overlay" @click.self="closeAdminEditUserModal">
+            <div class="modal-content max-w-lg">
+                <h3 class="text-xl font-semibold mb-6">編輯使用者 (管理員)</h3>
+                <form @submit.prevent="handleAdminUpdateUser" v-if="adminEditingUser.id">
+                    <div class="mb-4">
+                        <label for="adminEditUserName" class="block text-sm font-medium text-gray-700">名稱</label>
+                        <input type="text" id="adminEditUserName" v-model="adminEditingUser.name" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                    </div>
+                    <div class="mb-4">
+                        <label for="adminEditUserEmail" class="block text-sm font-medium text-gray-700">Email</label>
+                        <input type="email" id="adminEditUserEmail" v-model="adminEditingUser.email" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                    </div>
+                    <div class="mb-4">
+                        <label for="adminEditUserDepartment" class="block text-sm font-medium text-gray-700">部門</label>
+                         <select id="adminEditUserDepartment" v-model="adminEditingUser.department_id" class="mt-1 block w-full px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm">
+                            <option :value="null">-- 未設定 --</option>
+                            <option v-for="dept in allDepartments" :key="dept.id" :value="dept.id">{{ dept.name }}</option>
+                        </select>
+                    </div>
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700">帳號狀態</label>
+                        <select v-model="adminEditingUser.is_active" class="mt-1 block w-full px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm">
+                            <option :value="true">啟用</option>
+                            <option :value="false">停用</option>
+                        </select>
+                    </div>
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-gray-700">所屬群組</label>
+                        <div class="mt-2 space-y-2 max-h-40 overflow-y-auto border p-2 rounded-md">
+                            <div v-for="group in allGroups" :key="group.id" class="flex items-center">
+                                <input :id="'group-checkbox-' + group.id" type="checkbox" :value="group.id" v-model="adminEditingUser.selected_group_ids" class="h-4 w-4 text-indigo-600 border-gray-300 rounded">
+                                <label :for="'group-checkbox-' + group.id" class="ml-2 block text-sm text-gray-900">{{ group.name }}</label>
+                            </div>
+                             <p v-if="!allGroups.length" class="text-xs text-gray-500">沒有可用的群組。</p>
+                        </div>
+                    </div>
+                    <p v-if="adminUserMessage.text" :class="['text-sm mb-4', adminUserMessage.type === 'success' ? 'text-green-600' : 'text-red-600']">{{ adminUserMessage.text }}</p>
+                    <div class="flex justify-end space-x-3">
+                        <button type="button" @click="closeAdminEditUserModal" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-md">取消</button>
+                        <button type="submit" :disabled="isLoadingAdminAction" class="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md disabled:opacity-50">
+                            {{ isLoadingAdminAction ? '儲存中...' : '儲存變更' }}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div v-if="showAdminResetPasswordModal" class="modal-overlay" @click.self="closeAdminResetPasswordModal">
+            <div class="modal-content">
+                <h3 class="text-xl font-semibold mb-4">重設使用者密碼 (管理員)</h3>
+                <p class="text-sm text-gray-600 mb-4">您正在為使用者 <span class="font-medium">{{ adminTargetUserForPasswordReset?.name }} ({{ adminTargetUserForPasswordReset?.email }})</span> 重設密碼。</p>
+                <form @submit.prevent="handleAdminResetPassword">
+                    <div class="mb-4">
+                        <label for="adminNewPassword" class="block text-sm font-medium text-gray-700">新密碼 (至少6位)</label>
+                        <input type="password" id="adminNewPassword" v-model="adminResetPasswordForm.new_password" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                    </div>
+                    <div class="mb-6">
+                        <label for="adminConfirmNewPassword" class="block text-sm font-medium text-gray-700">確認新密碼</label>
+                        <input type="password" id="adminConfirmNewPassword" v-model="adminResetPasswordForm.confirm_new_password" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                    </div>
+                     <p v-if="adminPasswordMessage.text" :class="['text-sm mb-4', adminPasswordMessage.type === 'success' ? 'text-green-600' : 'text-red-600']">{{ adminPasswordMessage.text }}</p>
+                    <div class="flex justify-end space-x-3">
+                        <button type="button" @click="closeAdminResetPasswordModal" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-md">取消</button>
+                        <button type="submit" :disabled="isLoadingAdminAction" class="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md disabled:opacity-50">
+                             {{ isLoadingAdminAction ? '重設中...' : '確認重設' }}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div v-if="showAdminEditDepartmentModal" class="modal-overlay" @click.self="closeAdminEditDepartmentModal">
+            <div class="modal-content">
+                <h3 class="text-xl font-semibold mb-6">{{ adminEditingDepartment.id ? '編輯部門' : '新增部門' }}</h3>
+                <form @submit.prevent="handleAdminSaveDepartment">
+                    <div class="mb-4">
+                        <label for="adminEditDepartmentName" class="block text-sm font-medium text-gray-700">部門名稱</label>
+                        <input type="text" id="adminEditDepartmentName" v-model="adminEditingDepartment.name" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm">
+                    </div>
+                    <div class="mb-6">
+                        <label for="adminEditDepartmentDescription" class="block text-sm font-medium text-gray-700">部門描述</label>
+                        <textarea id="adminEditDepartmentDescription" v-model="adminEditingDepartment.description" rows="3" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm"></textarea>
+                    </div>
+                    <p v-if="adminDepartmentMessage.text" :class="['text-sm mb-4', adminDepartmentMessage.type === 'success' ? 'text-green-600' : 'text-red-600']">{{ adminDepartmentMessage.text }}</p>
+                    <div class="flex justify-end space-x-3">
+                        <button type="button" @click="closeAdminEditDepartmentModal" class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-200 rounded-md">取消</button>
+                        <button type="submit" :disabled="isLoadingAdminAction" class="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md disabled:opacity-50">
+                            {{ isLoadingAdminAction ? '儲存中...' : (adminEditingDepartment.id ? '儲存變更' : '新增部門') }}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
     </div>
 
     <script type="text/x-template" id="task-node-template">
@@ -380,14 +691,14 @@
     <script>
         const API_BASE_URL = 'https://pmt.thm.com.tw/api'; 
 
-        const ConfirmationModal = {
+        const ConfirmationModal = { /* ... same ... */ 
             name: 'ConfirmationModal',
             template: '#confirmation-modal-template',
             props: ['message'],
             emits: ['confirm', 'cancel']
         };
 
-        const TaskNode = {
+        const TaskNode = { /* ... same ... */ 
             name: 'TaskNode', 
             template: '#task-node-template',
             props: ['task', 'allTasks', 'users', 'level'],
@@ -402,77 +713,85 @@
             methods: {
                 assignedUserName(userId) {
                     if (!userId) return '未分配';
-                    const user = this.$root.users.find(u => u.id === userId); // Access users from root
+                    const user = this.$root.users.find(u => u.id === userId); 
                     return user ? user.name : '未知用戶';
                 },
                 formatDate(dateString) { 
                     if (!dateString) return '';
                     return new Date(dateString).toLocaleDateString(); 
                 },
-                editThisTask() {
-                    this.$root.openEditTaskModal(this.task);
-                },
+                editThisTask() { this.$root.openEditTaskModal(this.task); },
                 requestDeleteConfirmation() { 
                     this.$emit('request-delete-confirmation', { id: this.task.id, name: this.task.name }); 
                 },
-                triggerChangeStatus(task, status) {
-                    this.$emit('change-status', task, status);
-                }
+                triggerChangeStatus(task, status) { this.$emit('change-status', task, status); }
             }
         };
 
         const app = Vue.createApp({
-            components: {
-                TaskNode,
-                ConfirmationModal 
-            },
+            components: { TaskNode, ConfirmationModal },
             data() {
                 return {
-                    // --- App State ---
-                    currentView: 'login', // 'login', 'register', 'app'
-                    authToken: localStorage.getItem('authToken') || null,
-                    currentUser: JSON.parse(localStorage.getItem('currentUser')) || null,
+                    currentView: 'login', 
+                    authToken: localStorage.getItem('authTokenPmt') || null, 
+                    currentUser: JSON.parse(localStorage.getItem('currentUserPmt')) || null, 
                     authError: '',
+                    isLoadingAuth: false, 
+                    isLoadingProfile: false, 
+                    isLoadingAdminAction: false, 
 
-                    // --- Auth Forms ---
                     loginForm: { email: '', password: '' },
-                    registerForm: { name: '', email: '', password: '' },
-                    
-                    // --- Project/Task Data ---
+                    registerForm: { name: '', email: '', password: '', confirmPassword: '', department: '' }, 
+                    changePasswordForm: { current_password: '', new_password: '', confirm_new_password: ''},
+                    profileMessage: { type: '', text: '' }, 
+
                     projects: [],
-                    users: [], // Will be fetched if admin, or for assignee selection
+                    users: [], 
                     selectedProject: null,
                     projectTasks: [], 
                     
-                    showProjectModal: false,
+                    showProjectModal: false, 
                     editingProject: null, 
-                    currentProject: { name: '', description: '' },
+                    currentProject: { name: '', description: '' }, 
 
-                    showTaskModal: false,
-                    editingTask: null, 
+                    showTaskModal: false, editingTask: null, 
                     currentTask: { 
-                        name: '', description: '', assignee_id: null, 
-                        status: '待辦', parent_id: null, project_id: null, 
-                        due_date_input: '' 
+                        name: '', description: '', assignee_id: null, status: '待辦', 
+                        parent_id: null, project_id: null, due_date_input: '' 
                     },
                     
-                    isLoadingProjects: false, 
-                    isLoadingTasks: false,
-
-                    showConfirmationModal: false,
-                    confirmationMessage: '',
-                    taskToDeleteId: null,
+                    isLoadingProjects: false, isLoadingTasks: false,
+                    showConfirmationModal: false, confirmationMessage: '', 
+                    itemToDelete: null, 
+                    deleteType: '', 
+                    
                     selectedStatusFilter: null, 
+
+                    adminUsersList: [],
+                    isLoadingAdminUsers: false,
+                    showAdminEditUserModal: false,
+                    adminEditingUser: { id: null, name: '', email: '', department_id: null, is_active: true, selected_group_ids: [] }, 
+                    allGroups: [], 
+                    adminUserMessage: { type: '', text: '' },
+                    showAdminResetPasswordModal: false,
+                    adminTargetUserForPasswordReset: null,
+                    adminResetPasswordForm: { new_password: '', confirm_new_password: ''},
+                    adminPasswordMessage: { type: '', text: '' },
+
+                    allDepartments: [],
+                    isLoadingAdminDepartments: false,
+                    showAdminEditDepartmentModal: false,
+                    adminEditingDepartment: { id: null, name: '', description: ''},
+                    adminDepartmentMessage: { type: '', text: ''},
                 };
             },
-            computed: {
-                // ... (rootTasks, taskStatistics, filteredTasks remain the same)
-                rootTasks() {
+            computed: { /* ... (rootTasks, taskStatistics, filteredTasks, axiosInstance, isAdmin remain same) ... */ 
+                rootTasks() { 
                     if (!Array.isArray(this.projectTasks)) return [];
                     return this.projectTasks.filter(task => !task.parent_id)
                                          .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
                 },
-                taskStatistics() {
+                taskStatistics() { 
                     const stats = { todo: 0, inProgress: 0, done: 0, total: 0 };
                     if (!Array.isArray(this.projectTasks)) return stats;
                     this.projectTasks.forEach(task => {
@@ -489,157 +808,256 @@
                     }
                     return this.projectTasks.filter(task => task.status === this.selectedStatusFilter)
                                            .sort((a,b) => new Date(a.created_at) - new Date(b.created_at));
-                },
-                // Axios instance with auth header
-                axiosInstance() {
-                    const instance = axios.create({
-                        baseURL: API_BASE_URL,
-                    });
+                 },
+                axiosInstance() { 
+                    const instance = axios.create({ baseURL: API_BASE_URL });
                     if (this.authToken) {
                         instance.defaults.headers.common['Authorization'] = `Bearer ${this.authToken}`;
                     }
-                    // Interceptor to handle 401 errors (e.g., token expired)
                     instance.interceptors.response.use(
                         response => response,
                         error => {
                             if (error.response && error.response.status === 401) {
-                                console.warn("Axios interceptor: 401 Unauthorized, logging out.");
-                                this.logout(); // Automatically logout on 401
+                                this.logout("您的登入已過期或無效，請重新登入。");
+                            }
+                            if (error.response && error.response.data && error.response.data.message) {
+                                console.error("API Error:", error.response.data.message);
+                            } else if (error.response && error.response.statusText) {
+                                console.error("API Error:", error.response.statusText);
                             }
                             return Promise.reject(error);
                         }
                     );
                     return instance;
+                },
+                isAdmin() { 
+                    return this.currentUser && this.currentUser.groups && this.currentUser.groups.some(g => g.name === 'Administrator');
                 }
             },
-            methods: {
+            methods: { 
                 formatDate(dateString) { 
                     if (!dateString) return '';
-                    return new Date(dateString).toLocaleDateString(); 
+                    return new Date(dateString).toLocaleDateString();  
                 },
-                // --- Auth Methods ---
+                navigateTo(view) {
+                    this.currentView = view;
+                    this.authError = ''; 
+                    this.profileMessage = { type: '', text: '' }; 
+                    this.adminUserMessage = { type: '', text: '' };
+                    this.adminPasswordMessage = { type: '', text: '' };
+                    this.adminDepartmentMessage = { type: '', text: ''};
+
+                    if (view === 'app' && !this.currentUser) { 
+                        this.currentView = 'login'; 
+                    }
+                    if (view === 'app' && this.currentUser) {
+                        this.fetchInitialAppData(); 
+                    }
+                    if ((view === 'adminUsers' || view === 'adminDepartments') && !this.isAdmin) { 
+                        this.currentView = 'app'; 
+                    }
+                    if (view === 'adminUsers' && this.isAdmin) {
+                        this.fetchAdminUsersList(); 
+                        this.fetchAllGroups(); 
+                        this.fetchAllDepartments(); 
+                    }
+                    if (view === 'adminDepartments' && this.isAdmin) {
+                        this.fetchAdminDepartmentsList();
+                    }
+                },
                 async handleLogin() {
-                    this.authError = '';
+                    this.authError = ''; this.isLoadingAuth = true;
                     try {
                         const response = await axios.post(`${API_BASE_URL}/auth/login`, this.loginForm);
-                        this.authToken = response.data.token;
-                        this.currentUser = response.data.user;
-                        localStorage.setItem('authToken', this.authToken);
-                        localStorage.setItem('currentUser', JSON.stringify(this.currentUser));
-                        this.currentView = 'app';
-                        this.loginForm = { email: '', password: '' }; // Clear form
-                        this.fetchInitialAppData(); // Fetch data after login
+                        this.authToken = response.data.token; this.currentUser = response.data.user;
+                        localStorage.setItem('authTokenPmt', this.authToken);
+                        localStorage.setItem('currentUserPmt', JSON.stringify(this.currentUser));
+                        this.navigateTo('app');
+                        this.loginForm = { email: '', password: '' }; 
                     } catch (error) {
-                        console.error("登入失敗:", error.response?.data || error.message);
-                        this.authError = error.response?.data?.message || '登入失敗，請檢查您的帳號或密碼。';
-                    }
+                        this.authError = error.response?.data?.message || '登入失敗';
+                    } finally { this.isLoadingAuth = false; }
                 },
                 async handleRegister() {
                     this.authError = '';
-                    try {
-                        await axios.post(`${API_BASE_URL}/auth/register`, this.registerForm);
-                        alert('註冊成功！請使用您的新帳號登入。');
-                        this.currentView = 'login';
-                        this.registerForm = { name: '', email: '', password: '' }; // Clear form
-                    } catch (error) {
-                        console.error("註冊失敗:", error.response?.data || error.message);
-                        this.authError = error.response?.data?.message || '註冊失敗，請稍後再試。';
+                    if (this.registerForm.password !== this.registerForm.confirmPassword) {
+                        this.authError = '兩次輸入的密碼不一致！'; return;
                     }
+                    if (this.registerForm.password.length < 6) {
+                        this.authError = '密碼長度至少需要6位！'; return;
+                    }
+                    this.isLoadingAuth = true;
+                    try {
+                        const payload = {
+                            name: this.registerForm.name, email: this.registerForm.email,
+                            password: this.registerForm.password, 
+                            department: this.registerForm.department 
+                        };
+                        await axios.post(`${API_BASE_URL}/auth/register`, payload);
+                        alert('註冊成功！請使用您的新帳號登入。');
+                        this.navigateTo('login');
+                        this.registerForm = { name: '', email: '', password: '', confirmPassword: '', department: '' }; 
+                    } catch (error) {
+                        this.authError = error.response?.data?.message || '註冊失敗';
+                    } finally { this.isLoadingAuth = false; }
                 },
-                logout() {
-                    this.authToken = null;
-                    this.currentUser = null;
-                    localStorage.removeItem('authToken');
-                    localStorage.removeItem('currentUser');
-                    this.currentView = 'login';
-                    this.projects = []; // Clear data on logout
-                    this.projectTasks = [];
-                    this.selectedProject = null;
-                    console.log("使用者已登出");
+                logout(message = '') {
+                    this.authToken = null; this.currentUser = null;
+                    localStorage.removeItem('authTokenPmt'); localStorage.removeItem('currentUserPmt');
+                    this.navigateTo('login');
+                    this.projects = []; this.projectTasks = []; this.selectedProject = null;
+                    if(message) this.authError = message; 
+                },
+                async handleChangePassword() {
+                    this.profileMessage = { type: '', text: '' };
+                    if (this.changePasswordForm.new_password !== this.changePasswordForm.confirm_new_password) {
+                        this.profileMessage = { type: 'error', text: '新密碼與確認密碼不一致！' }; return;
+                    }
+                    if (this.changePasswordForm.new_password.length < 6) {
+                        this.profileMessage = { type: 'error', text: '新密碼長度至少需要6位！' }; return;
+                    }
+                    this.isLoadingProfile = true;
+                    try {
+                        await this.axiosInstance.put('/profile/me/password', {
+                            current_password: this.changePasswordForm.current_password,
+                            new_password: this.changePasswordForm.new_password
+                        });
+                        this.profileMessage = { type: 'success', text: '密碼更新成功！' };
+                        this.changePasswordForm = { current_password: '', new_password: '', confirm_new_password: '' }; 
+                    } catch (error) {
+                        this.profileMessage = { type: 'error', text: error.response?.data?.message || '更新密碼失敗' };
+                    } finally { this.isLoadingProfile = false; }
                 },
                 fetchInitialAppData() {
                     if (this.currentUser) {
                         this.fetchProjects();
-                        this.fetchUsers(); // Fetch users (might be restricted by backend later)
+                        this.fetchUsers(); 
                     }
                 },
-
-                // --- API Calls (modified to use axiosInstance) ---
-                 async fetchProjects() {
-                    if (!this.currentUser) return; // Don't fetch if not logged in
+                async fetchProjects() {
+                    if (!this.currentUser) return; 
                     this.isLoadingProjects = true;
                     try {
-                        const response = await this.axiosInstance.get(`/projects`);
+                        const response = await this.axiosInstance.get(`/projects`); 
                         this.projects = response.data;
-                    } catch (error) {
-                        console.error("獲取專案列表失敗:", error.response?.data || error.message);
-                        // alert("獲取專案列表失敗"); // Error already handled by interceptor or shown as authError
-                    } finally {
-                        this.isLoadingProjects = false;
-                    }
+                    } catch (error) { 
+                        let userFriendlyMessage = "獲取專案列表失敗。";
+                        if (error.message === "Network Error") {
+                            userFriendlyMessage += "\n請檢查您的網路連線以及後端伺服器 (" + API_BASE_URL + ") 是否正常運行。";
+                        } else if (error.response) {
+                            userFriendlyMessage += `\n伺服器回應錯誤: ${error.response.status}. `;
+                            if (error.response.data && typeof error.response.data === 'object' && error.response.data.message) {
+                                userFriendlyMessage += error.response.data.message;
+                            } else if (typeof error.response.data === 'string' && error.response.data.toLowerCase().includes('<html')) {
+                                userFriendlyMessage += "收到了非預期的 HTML 回應。";
+                            } else { userFriendlyMessage += "詳情請查看主控台日誌。"; }
+                        } else { userFriendlyMessage += `\n發生未知錯誤: ${error.message}.`; }
+                        console.error("獲取專案列表失敗 (fetchProjects):", error);
+                        alert(userFriendlyMessage);
+                        this.projects = [];
+                    } 
+                    finally { this.isLoadingProjects = false; }
                 },
-                async fetchUsers() { // This might be an admin-only endpoint later
+                async fetchUsers() { 
                     if (!this.currentUser) return;
                     try {
-                        const response = await this.axiosInstance.get(`/users`);
-                        this.users = response.data;
+                        const response = await this.axiosInstance.get(`/admin/users`); 
+                        this.users = response.data.users || response.data; 
                     } catch (error) {
-                        console.error("獲取使用者列表失敗:", error.response?.data || error.message);
-                        // If not admin, this might fail with 403, which is fine.
+                        console.warn("獲取使用者列表失敗 (fetchUsers, for assignees):", error.response?.data?.message || error.message);
                     }
                 },
                 async fetchTasksForProject(projectId) {
                     if (!projectId || !this.currentUser) return;
-                    this.isLoadingTasks = true; 
-                    this.projectTasks = []; 
-                    this.clearStatusFilter(); 
+                    this.isLoadingTasks = true; this.projectTasks = []; this.clearStatusFilter(); 
                     try {
-                        const response = await this.axiosInstance.get(`/projects/${projectId}/tasks`);
+                        const response = await this.axiosInstance.get(`/projects/${projectId}/tasks`); 
                         this.projectTasks = response.data; 
-                    } catch (error) {
-                        console.error(`獲取專案 ${projectId} 的任務失敗:`, error.response?.data || error.message);
+                    } catch (error) { 
+                        let userFriendlyMessage = `獲取專案 ${this.selectedProject?.name || projectId} 的任務失敗。`;
+                        if (error.message === "Network Error") {
+                            userFriendlyMessage += "\n請檢查網路連線及後端伺服器。";
+                        } else if (error.response) {
+                            userFriendlyMessage += `\n錯誤: ${error.response.status} - ${error.response.data?.message || error.response.statusText}`;
+                        } else { userFriendlyMessage += `\n未知錯誤: ${error.message}.`; }
+                        console.error(`獲取專案 ${projectId} 任務失敗:`, error); 
+                        alert(userFriendlyMessage);
                         this.projectTasks = []; 
-                        // alert(`獲取專案任務失敗。`);
-                    } finally {
-                        this.isLoadingTasks = false; 
-                    }
+                    } 
+                    finally { this.isLoadingTasks = false; }
                 },
-                selectProject(project) {
-                    if (this.selectedProject && this.selectedProject.id === project.id) {
-                         this.fetchTasksForProject(project.id); // Re-fetch on re-click
-                        return; 
-                    }
-                    this.selectedProject = project;
-                    this.fetchTasksForProject(project.id);
-                },
-                openCreateProjectModal() {
-                    this.editingProject = null;
+                // --- Project CRUD ---
+                openCreateProjectModal() { 
+                    if (!this.currentUser) { this.navigateTo('login'); return; }
+                    this.editingProject = null; 
                     this.currentProject = { name: '', description: '' };
                     this.showProjectModal = true;
                 },
-                closeProjectModal() { this.showProjectModal = false; },
+                openEditProjectModal(project) {
+                    if (!this.currentUser) { this.navigateTo('login'); return; }
+                    this.editingProject = { ...project }; 
+                    this.currentProject = { ...project }; 
+                    this.showProjectModal = true;
+                },
+                closeProjectModal() { 
+                    this.showProjectModal = false;
+                    this.editingProject = null;
+                    this.currentProject = { name: '', description: '' };
+                },
                 async saveProject() {
                     if (!this.currentProject.name.trim()) { alert("專案名稱不能為空！"); return; }
                     this.isLoadingProjects = true;
                     try {
                         let savedProject;
-                        if (this.editingProject) { 
+                        if (this.editingProject && this.editingProject.id) { 
                             const response = await this.axiosInstance.put(`/projects/${this.editingProject.id}`, this.currentProject);
                             savedProject = response.data;
                             const index = this.projects.findIndex(p => p.id === this.editingProject.id);
                             if (index !== -1) this.projects.splice(index, 1, savedProject);
+                            if(this.selectedProject && this.selectedProject.id === this.editingProject.id) {
+                                this.selectedProject = savedProject; 
+                            }
                         } else { 
                             const response = await this.axiosInstance.post(`/projects`, this.currentProject);
                             savedProject = response.data;
                             this.projects.unshift(savedProject); 
+                            this.selectProject(savedProject); 
                         }
-                        this.selectProject(savedProject); 
-                        this.closeProjectModal();
+                        this.closeProjectModal(); 
                     } catch (error) {
                         console.error("儲存專案失敗:", error.response?.data || error.message);
                         alert("儲存專案失敗: " + (error.response?.data?.error || '未知錯誤'));
                     } finally { this.isLoadingProjects = false; }
                 },
+                confirmDeleteProject(project) {
+                    if (!this.currentUser) { this.navigateTo('login'); return; }
+                    this.itemToDelete = { ...project };
+                    this.deleteType = 'project';
+                    this.confirmationMessage = `您確定要刪除專案 "${project.name}" 及其所有相關任務嗎？此操作無法復原。`;
+                    this.showConfirmationModal = true;
+                },
+                async handleActualDeleteProject() {
+                    if (!this.itemToDelete || this.deleteType !== 'project') return;
+                    this.isLoadingProjects = true; 
+                    try {
+                        await this.axiosInstance.delete(`/projects/${this.itemToDelete.id}`);
+                        this.projects = this.projects.filter(p => p.id !== this.itemToDelete.id);
+                        if (this.selectedProject && this.selectedProject.id === this.itemToDelete.id) {
+                            this.selectedProject = null;
+                            this.projectTasks = [];
+                            this.clearStatusFilter();
+                        }
+                        alert(`專案 "${this.itemToDelete.name}" 已成功刪除。`);
+                    } catch (error) {
+                        console.error("刪除專案失敗:", error.response?.data || error.message);
+                        alert("刪除專案失敗: " + (error.response?.data?.error || '未知錯誤'));
+                    } finally {
+                        this.isLoadingProjects = false;
+                        this.itemToDelete = null;
+                        this.deleteType = '';
+                    }
+                },
+                // --- Task CRUD ---
                 openCreateTaskModal(parentId = null) { 
                     if (!this.selectedProject) { alert("請先選擇一個專案！"); return; }
                     this.editingTask = null;
@@ -670,7 +1088,6 @@
                         } catch (e) { alert("截止日期格式有誤"); return; }
                     }
                     delete taskPayload.due_date_input; 
-
                     try {
                         if (this.editingTask) { 
                             await this.axiosInstance.put(`/tasks/${this.editingTask.id}`, taskPayload);
@@ -701,20 +1118,6 @@
                         if (this.selectedProject) await this.fetchTasksForProject(this.selectedProject.id);
                     }
                 },
-                showDeleteConfirmation(payload) {
-                    this.taskToDeleteId = payload.id;
-                    this.confirmationMessage = `您確定要刪除任務 "${payload.name}" 及其所有子任務嗎？此操作無法復原。`;
-                    this.showConfirmationModal = true;
-                },
-                handleDeleteCancelled() {
-                    this.showConfirmationModal = false; this.taskToDeleteId = null; this.confirmationMessage = '';
-                },
-                handleDeleteConfirmed() {
-                    this.showConfirmationModal = false; const taskId = this.taskToDeleteId; 
-                    this.taskToDeleteId = null; this.confirmationMessage = '';
-                    if (taskId) this.handleDeleteTask(taskId);
-                    else console.error("Root: handleDeleteConfirmed called but taskToDeleteId was null.");
-                },
                 async handleDeleteTask(taskId) {
                     if (!taskId) { console.error("Root: handleDeleteTask called with invalid taskId"); return; }
                     try {
@@ -725,11 +1128,176 @@
                         alert("刪除任務失敗: " + (error.response?.data?.error || '未知錯誤'));
                     }
                 },
-                selectStatusFilter(status) {
-                    if (this.selectedStatusFilter === status) this.clearStatusFilter(); 
-                    else this.selectedStatusFilter = status;
+                // --- Admin User Management Methods ---
+                async fetchAdminUsersList() {
+                    if (!this.isAdmin) return;
+                    this.isLoadingAdminUsers = true; this.adminUserMessage = { type: '', text: '' };
+                    try {
+                        const response = await this.axiosInstance.get('/admin/users');
+                        this.adminUsersList = response.data.users;
+                    } catch (error) {
+                        this.adminUserMessage = { type: 'error', text: '無法載入使用者列表: ' + (error.response?.data?.message || error.message) };
+                    } finally { this.isLoadingAdminUsers = false; }
                 },
-                clearStatusFilter() { this.selectedStatusFilter = null; },
+                async fetchAllGroups() { 
+                    if (!this.isAdmin) return;
+                    try {
+                        const response = await this.axiosInstance.get('/admin/groups');
+                        this.allGroups = response.data;
+                    } catch (error) { console.error("獲取所有群組列表失敗:", error.response?.data?.message || error.message); }
+                },
+                async fetchAllDepartments() { 
+                    if(!this.isAdmin) return;
+                    this.isLoadingAdminDepartments = true; 
+                    try {
+                        const response = await this.axiosInstance.get('/admin/departments');
+                        this.allDepartments = response.data;
+                    } catch (error) {
+                        console.error("獲取所有部門失敗:", error.response?.data?.message || error.message);
+                        this.adminDepartmentMessage = { type: 'error', text: '無法載入部門列表。'};
+                    } finally {
+                        this.isLoadingAdminDepartments = false;
+                    }
+                },
+                openAdminEditUserModal(user) {
+                    if (this.allGroups.length === 0) this.fetchAllGroups();
+                    if (this.allDepartments.length === 0) this.fetchAllDepartments();
+                    this.adminEditingUser = { 
+                        ...user, 
+                        department_id: user.department ? user.department.id : null, 
+                        selected_group_ids: user.groups ? user.groups.map(g => g.id) : [] 
+                    };
+                    this.adminUserMessage = { type: '', text: '' };
+                    this.showAdminEditUserModal = true;
+                },
+                closeAdminEditUserModal() {
+                    this.showAdminEditUserModal = false;
+                    this.adminEditingUser = { id: null, name: '', email: '', department_id: null, is_active: true, selected_group_ids: [] };
+                },
+                async handleAdminUpdateUser() {
+                    if (!this.adminEditingUser.id) return;
+                    this.isLoadingAdminAction = true; this.adminUserMessage = { type: '', text: '' };
+                    try {
+                        const payload = {
+                            name: this.adminEditingUser.name,
+                            email: this.adminEditingUser.email,
+                            department_id: this.adminEditingUser.department_id, 
+                            is_active: this.adminEditingUser.is_active,
+                            group_ids: this.adminEditingUser.selected_group_ids
+                        };
+                        await this.axiosInstance.put(`/admin/users/${this.adminEditingUser.id}`, payload);
+                        this.adminUserMessage = { type: 'success', text: '使用者資訊更新成功！' };
+                        this.fetchAdminUsersList(); 
+                        setTimeout(() => this.closeAdminEditUserModal(), 1500); 
+                    } catch (error) {
+                        this.adminUserMessage = { type: 'error', text: error.response?.data?.message || '更新失敗。' };
+                    } finally { this.isLoadingAdminAction = false; }
+                },
+                openAdminResetPasswordModal(user) {
+                    this.adminTargetUserForPasswordReset = user;
+                    this.adminResetPasswordForm = { new_password: '', confirm_new_password: '' };
+                    this.adminPasswordMessage = { type: '', text: '' };
+                    this.showAdminResetPasswordModal = true;
+                },
+                closeAdminResetPasswordModal() {
+                    this.showAdminResetPasswordModal = false; this.adminTargetUserForPasswordReset = null;
+                },
+                async handleAdminResetPassword() {
+                    if (!this.adminTargetUserForPasswordReset) return;
+                    if (this.adminResetPasswordForm.new_password !== this.adminResetPasswordForm.confirm_new_password) {
+                        this.adminPasswordMessage = { type: 'error', text: '兩次輸入的密碼不一致！' }; return;
+                    }
+                    if (this.adminResetPasswordForm.new_password.length < 6) {
+                        this.adminPasswordMessage = { type: 'error', text: '新密碼長度至少需要6位！' }; return;
+                    }
+                    this.isLoadingAdminAction = true; this.adminPasswordMessage = { type: '', text: '' };
+                    try {
+                        await this.axiosInstance.put(`/admin/users/${this.adminTargetUserForPasswordReset.id}/password`, {
+                            new_password: this.adminResetPasswordForm.new_password
+                        });
+                        this.adminPasswordMessage = { type: 'success', text: `密碼已成功重設！` };
+                        setTimeout(() => this.closeAdminResetPasswordModal(), 2000);
+                    } catch (error) {
+                        this.adminPasswordMessage = { type: 'error', text: error.response?.data?.message || '重設密碼失敗。' };
+                    } finally { this.isLoadingAdminAction = false; }
+                },
+                async fetchAdminDepartmentsList() {
+                    if (!this.isAdmin) return;
+                    this.isLoadingAdminDepartments = true; this.adminDepartmentMessage = { type: '', text: '' };
+                    try {
+                        const response = await this.axiosInstance.get('/admin/departments');
+                        this.allDepartments = response.data;
+                    } catch (error) {
+                        this.adminDepartmentMessage = { type: 'error', text: '無法載入部門列表: ' + (error.response?.data?.message || error.message) };
+                    } finally { this.isLoadingAdminDepartments = false; }
+                },
+                openAdminEditDepartmentModal(dept = null) {
+                    if (dept) {
+                        this.adminEditingDepartment = { ...dept };
+                    } else {
+                        this.adminEditingDepartment = { id: null, name: '', description: ''};
+                    }
+                    this.adminDepartmentMessage = {type: '', text: ''};
+                    this.showAdminEditDepartmentModal = true;
+                },
+                closeAdminEditDepartmentModal() {
+                    this.showAdminEditDepartmentModal = false;
+                    this.adminEditingDepartment = { id: null, name: '', description: ''};
+                },
+                async handleAdminSaveDepartment() {
+                    if (!this.adminEditingDepartment.name.trim()) {
+                        this.adminDepartmentMessage = {type: 'error', text: '部門名稱不能為空！'};
+                        return;
+                    }
+                    this.isLoadingAdminAction = true; this.adminDepartmentMessage = {type: '', text: ''};
+                    try {
+                        const payload = {
+                            name: this.adminEditingDepartment.name,
+                            description: this.adminEditingDepartment.description
+                        };
+                        if (this.adminEditingDepartment.id) { 
+                            await this.axiosInstance.put(`/admin/departments/${this.adminEditingDepartment.id}`, payload);
+                            this.adminDepartmentMessage = {type: 'success', text: '部門更新成功！'};
+                        } else { 
+                            await this.axiosInstance.post('/admin/departments', payload);
+                            this.adminDepartmentMessage = {type: 'success', text: '部門新增成功！'};
+                        }
+                        this.fetchAdminDepartmentsList(); 
+                        setTimeout(() => this.closeAdminEditDepartmentModal(), 1500); 
+                    } catch (error) {
+                        this.adminDepartmentMessage = {type: 'error', text: error.response?.data?.message || '操作失敗。'};
+                    } finally { this.isLoadingAdminAction = false; }
+                },
+                async handleAdminDeleteDepartment(deptId, deptName) {
+                    this.itemToDelete = {id: deptId, name: deptName};
+                    this.deleteType = 'department';
+                    this.confirmationMessage = `您確定要刪除部門 "${deptName}" 嗎？如果部門下仍有使用者，將無法刪除。`;
+                    this.showConfirmationModal = true;
+                },
+                async handleActualDeleteDepartment() {
+                     if (!this.itemToDelete || this.deleteType !== 'department') return;
+                    this.isLoadingAdminAction = true; 
+                    this.adminDepartmentMessage = {type: '', text: ''}; 
+                    try {
+                        await this.axiosInstance.delete(`/admin/departments/${this.itemToDelete.id}`);
+                        this.adminDepartmentMessage = {type: 'success', text: `部門 "${this.itemToDelete.name}" 已刪除。`};
+                        this.fetchAdminDepartmentsList(); 
+                    } catch (error) {
+                         this.adminDepartmentMessage = {type: 'error', text: error.response?.data?.message || '刪除失敗。'};
+                    } finally { 
+                        this.isLoadingAdminAction = false; 
+                        this.itemToDelete = null;
+                        this.deleteType = '';
+                    }
+                },
+                selectProject(project) {
+                    if (this.selectedProject && this.selectedProject.id === project.id) {
+                         this.fetchTasksForProject(project.id);
+                        return; 
+                    }
+                    this.selectedProject = project;
+                    this.fetchTasksForProject(project.id);
+                },
                 assignedUserNameRoot(userId) { 
                     if (!userId) return '未分配';
                     const user = this.users.find(u => u.id === userId);
@@ -739,20 +1307,55 @@
                     if (!parentId || !Array.isArray(this.projectTasks)) return null;
                     const parentTask = this.projectTasks.find(t => t.id === parentId);
                     return parentTask ? parentTask.name : null;
+                },
+                selectStatusFilter(status) {
+                    if (this.selectedStatusFilter === status) this.clearStatusFilter(); 
+                    else this.selectedStatusFilter = status;
+                },
+                clearStatusFilter() { this.selectedStatusFilter = null; },
+                showDeleteConfirmation(payload) { // For tasks
+                    this.itemToDelete = { ...payload }; 
+                    this.deleteType = 'task';
+                    this.confirmationMessage = `您確定要刪除任務 "${payload.name}" 及其所有子任務嗎？此操作無法復原。`;
+                    this.showConfirmationModal = true;
+                },
+                handleDeleteCancelled() {
+                    this.showConfirmationModal = false; 
+                    this.itemToDelete = null; 
+                    this.deleteType = '';
+                    this.confirmationMessage = '';
+                },
+                handleDeleteConfirmed() { 
+                    this.showConfirmationModal = false; 
+                    if (this.deleteType === 'task' && this.itemToDelete) {
+                        this.handleDeleteTask(this.itemToDelete.id);
+                    } else if (this.deleteType === 'project' && this.itemToDelete) {
+                        this.handleActualDeleteProject();
+                    } else if (this.deleteType === 'department' && this.itemToDelete) { 
+                        this.handleActualDeleteDepartment(); // Call the correct delete method for departments
+                    }
+                    this.itemToDelete = null; 
+                    this.deleteType = '';
+                    this.confirmationMessage = '';
                 }
             },
-            created() { // Renamed from mounted to created for earlier execution
+            created() { 
                 console.log("Root Vue app created. Checking auth status...");
-                // 檢查 localStorage 中是否有 token，如果有，嘗試獲取使用者資訊
-                if (this.authToken && this.currentUser) {
-                    // 可以選擇在這裡呼叫 /api/auth/me 來驗證 token 是否仍然有效
-                    // 為了簡化，我們先假設 token 有效，並直接切換到 app view
-                    this.currentView = 'app';
-                    this.fetchInitialAppData();
-                     console.log("User is logged in from localStorage.", this.currentUser);
+                console.log("Methods check on created: openCreateProjectModal:", typeof this.openCreateProjectModal, "closeProjectModal:", typeof this.closeProjectModal, "selectProject:", typeof this.selectProject, "openCreateTaskModal:", typeof this.openCreateTaskModal);
+
+                const token = localStorage.getItem('authTokenPmt');
+                const user = localStorage.getItem('currentUserPmt');
+                if (token && user) {
+                    try {
+                        this.authToken = token;
+                        this.currentUser = JSON.parse(user);
+                        this.navigateTo('app'); 
+                    } catch (e) {
+                        console.error("Error parsing currentUser from localStorage", e);
+                        this.logout(); 
+                    }
                 } else {
-                    this.currentView = 'login'; // 預設為登入頁面
-                    console.log("No active session found in localStorage. Directing to login.");
+                    this.navigateTo('login'); 
                 }
             }
         });
