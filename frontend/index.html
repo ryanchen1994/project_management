@@ -65,8 +65,7 @@
         .stat-badge-done { background-color: #d1fae5; color: #047857; }
         .stat-badge-total { background-color: #f3e8ff; color: #6b21a8; cursor: default; }
         .stat-badge.active { 
-            ring: 2px;
-            ring-offset-2;
+            /* box-shadow: 0 0 0 2px currentColor; */ /* Simpler active state */
         }
         .stat-badge-todo.active { box-shadow: 0 0 0 2px #9ca3af; }
         .stat-badge-inprogress.active { box-shadow: 0 0 0 2px #3b82f6; }
@@ -205,10 +204,6 @@
                         <label for="registerEmail" class="block text-sm font-medium text-gray-700">電子郵件</label>
                         <input type="email" id="registerEmail" v-model="registerForm.email" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
                     </div>
-                    <div class="mb-4"> 
-                        <label for="registerDepartment" class="block text-sm font-medium text-gray-700">部門 (可選)</label>
-                        <input type="text" id="registerDepartment" v-model="registerForm.department" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                    </div>
                     <div class="mb-4">
                         <label for="registerPassword" class="block text-sm font-medium text-gray-700">密碼 (至少6位)</label>
                         <input type="password" id="registerPassword" v-model="registerForm.password" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
@@ -248,7 +243,7 @@
                             <span v-if="currentUser.groups && currentUser.groups.length > 0" 
                                   v-for="group in currentUser.groups" :key="group.id"
                                   class="inline-block bg-blue-100 text-blue-800 text-xs font-medium mr-2 px-2.5 py-0.5 rounded-full">
-                                {{ group.name }}
+                                {{ group.name }} <span v-if="group.description" class="text-blue-600 text-opacity-75">({{ group.description }})</span>
                             </span>
                             <span v-else class="text-gray-700">無</span>
                         </div>
@@ -363,7 +358,7 @@
                     <div class="md:col-span-1 bg-white p-6 rounded-lg shadow">
                         <div class="flex justify-between items-center mb-4">
                             <h2 class="text-2xl font-semibold text-gray-700">專案列表</h2>
-                            <button @click="openCreateProjectModal" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition duration-150">
+                            <button v-if="canCreateProjects" @click="openCreateProjectModal" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition duration-150">
                                 新增專案
                             </button>
                         </div>
@@ -373,8 +368,8 @@
                                 :class="[selectedProject && selectedProject.id === project.id ? 'bg-blue-100 text-blue-700 font-semibold' : 'hover:bg-gray-200']">
                                 <span @click="selectProject(project)" class="project-list-item-name">{{ project.name }}</span>
                                 <div class="flex-shrink-0 ml-2 space-x-1">
-                                     <button @click.stop="openEditProjectModal(project)" title="編輯專案" class="action-button action-button-edit text-xs">編輯</button>
-                                     <button @click.stop="confirmDeleteProject(project)" title="刪除專案" class="action-button action-button-danger text-xs">刪除</button>
+                                     <button v-if="canEditProjects" @click.stop="openEditProjectModal(project)" title="編輯專案" class="action-button action-button-edit text-xs">編輯</button>
+                                     <button v-if="canDeleteProjects" @click.stop="confirmDeleteProject(project)" title="刪除專案" class="action-button action-button-danger text-xs">刪除</button>
                                 </div>
                             </li>
                         </ul>
@@ -388,7 +383,7 @@
                                     <h2 class="text-3xl font-bold text-gray-800">{{ selectedProject.name }}</h2>
                                     <p class="text-gray-600 mt-1">{{ selectedProject.description }}</p>
                                 </div>
-                                <button @click="openCreateTaskModal(null)" class="mt-4 sm:mt-0 bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition duration-150 self-start sm:self-center">
+                                <button v-if="canCreateTasks" @click="openCreateTaskModal(null)" class="mt-4 sm:mt-0 bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md transition duration-150 self-start sm:self-center">
                                     新增頂層任務
                                 </button>
                             </div>
@@ -559,11 +554,14 @@
                         </select>
                     </div>
                     <div class="mb-6">
-                        <label class="block text-sm font-medium text-gray-700">所屬群組</label>
+                        <label class="block text-sm font-medium text-gray-700">所屬群組 (權限)</label>
                         <div class="mt-2 space-y-2 max-h-40 overflow-y-auto border p-2 rounded-md">
                             <div v-for="group in allGroups" :key="group.id" class="flex items-center">
                                 <input :id="'group-checkbox-' + group.id" type="checkbox" :value="group.id" v-model="adminEditingUser.selected_group_ids" class="h-4 w-4 text-indigo-600 border-gray-300 rounded">
-                                <label :for="'group-checkbox-' + group.id" class="ml-2 block text-sm text-gray-900">{{ group.name }}</label>
+                                <label :for="'group-checkbox-' + group.id" class="ml-2 block text-sm text-gray-900">
+                                    {{ group.name }} 
+                                    <span v-if="group.description" class="text-xs text-gray-500">({{ group.description }})</span>
+                                </label>
                             </div>
                              <p v-if="!allGroups.length" class="text-xs text-gray-500">沒有可用的群組。</p>
                         </div>
@@ -647,9 +645,9 @@
                     </div>
                 </div>
                 <div class="flex flex-col sm:flex-row items-end sm:items-center space-y-2 sm:space-y-0 sm:space-x-2 mt-2 sm:mt-0 flex-shrink-0">
-                     <button @click="$emit('create-sub-task', task.id)" title="新增子任務" class="text-xs bg-blue-500 hover:bg-blue-600 text-white py-1 px-2 rounded transition duration-150">新增子任務</button>
-                     <button @click="editThisTask" title="編輯任務" class="text-xs bg-yellow-500 hover:bg-yellow-600 text-white py-1 px-2 rounded transition duration-150">編輯</button>
-                     <button @click="requestDeleteConfirmation" title="刪除任務" class="text-xs bg-red-500 hover:bg-red-600 text-white py-1 px-2 rounded transition duration-150">刪除</button>
+                     <button v-if="this.$root.canCreateTasks" @click="$emit('create-sub-task', task.id)" title="新增子任務" class="text-xs bg-blue-500 hover:bg-blue-600 text-white py-1 px-2 rounded transition duration-150">新增子任務</button>
+                     <button v-if="this.$root.canEditTasks" @click="editThisTask" title="編輯任務" class="text-xs bg-yellow-500 hover:bg-yellow-600 text-white py-1 px-2 rounded transition duration-150">編輯</button>
+                     <button v-if="this.$root.canDeleteTasks" @click="requestDeleteConfirmation" title="刪除任務" class="text-xs bg-red-500 hover:bg-red-600 text-white py-1 px-2 rounded transition duration-150">刪除</button>
                 </div>
             </div>
             <div v-if="childTasks.length > 0" class="mt-3 pl-4 border-l-2 border-gray-200">
@@ -698,7 +696,7 @@
             emits: ['confirm', 'cancel']
         };
 
-        const TaskNode = { /* ... same ... */ 
+        const TaskNode = { 
             name: 'TaskNode', 
             template: '#task-node-template',
             props: ['task', 'allTasks', 'users', 'level'],
@@ -752,7 +750,7 @@
                     
                     showProjectModal: false, 
                     editingProject: null, 
-                    currentProject: { name: '', description: '' }, 
+                    currentProject: { id: null, name: '', description: '' }, // Ensure id is part of currentProject for editing
 
                     showTaskModal: false, editingTask: null, 
                     currentTask: { 
@@ -785,7 +783,7 @@
                     adminDepartmentMessage: { type: '', text: ''},
                 };
             },
-            computed: { /* ... (rootTasks, taskStatistics, filteredTasks, axiosInstance, isAdmin remain same) ... */ 
+            computed: { 
                 rootTasks() { 
                     if (!Array.isArray(this.projectTasks)) return [];
                     return this.projectTasks.filter(task => !task.parent_id)
@@ -832,6 +830,27 @@
                 },
                 isAdmin() { 
                     return this.currentUser && this.currentUser.groups && this.currentUser.groups.some(g => g.name === 'Administrator');
+                },
+                canCreateProjects() {
+                    return this.currentUser && this.currentUser.groups && 
+                           this.currentUser.groups.some(g => ['Administrator', 'ProjectManager'].includes(g.name));
+                },
+                canEditProjects() {
+                    return this.canCreateProjects; 
+                },
+                canDeleteProjects() {
+                    return this.isAdmin;
+                },
+                canCreateTasks() {
+                     return this.currentUser && this.currentUser.groups && 
+                           this.currentUser.groups.some(g => ['Administrator', 'ProjectManager', 'Developer'].includes(g.name));
+                },
+                canEditTasks() { 
+                    return this.canCreateTasks;
+                },
+                canDeleteTasks() {
+                     return this.currentUser && this.currentUser.groups && 
+                           this.currentUser.groups.some(g => ['Administrator', 'ProjectManager'].includes(g.name));
                 }
             },
             methods: { 
@@ -891,7 +910,7 @@
                         const payload = {
                             name: this.registerForm.name, email: this.registerForm.email,
                             password: this.registerForm.password, 
-                            department: this.registerForm.department 
+                            // department: this.registerForm.department // 註冊時不再傳送部門
                         };
                         await axios.post(`${API_BASE_URL}/auth/register`, payload);
                         alert('註冊成功！請使用您的新帳號登入。');
@@ -961,10 +980,13 @@
                 async fetchUsers() { 
                     if (!this.currentUser) return;
                     try {
-                        const response = await this.axiosInstance.get(`/admin/users`); 
+                        // 管理員獲取完整使用者列表，非管理員可能獲取簡化列表或為空
+                        const endpoint = this.isAdmin ? '/admin/users' : '/users'; // 假設後端有 /users 給非管理員
+                        const response = await this.axiosInstance.get(endpoint); 
                         this.users = response.data.users || response.data; 
                     } catch (error) {
-                        console.warn("獲取使用者列表失敗 (fetchUsers, for assignees):", error.response?.data?.message || error.message);
+                        console.warn("獲取使用者列表失敗 (fetchUsers):", error.response?.data?.message || error.message);
+                        if (!this.isAdmin) this.users = []; // 非管理員獲取失敗則清空
                     }
                 },
                 async fetchTasksForProject(projectId) {
@@ -986,15 +1008,22 @@
                     } 
                     finally { this.isLoadingTasks = false; }
                 },
-                // --- Project CRUD ---
                 openCreateProjectModal() { 
                     if (!this.currentUser) { this.navigateTo('login'); return; }
+                    if (!this.canCreateProjects) {
+                        alert("您沒有權限建立專案。");
+                        return;
+                    }
                     this.editingProject = null; 
-                    this.currentProject = { name: '', description: '' };
+                    this.currentProject = { id: null, name: '', description: '' }; // Ensure id is null for new
                     this.showProjectModal = true;
                 },
                 openEditProjectModal(project) {
                     if (!this.currentUser) { this.navigateTo('login'); return; }
+                     if (!this.canEditProjects) {
+                        alert("您沒有權限編輯專案。");
+                        return;
+                    }
                     this.editingProject = { ...project }; 
                     this.currentProject = { ...project }; 
                     this.showProjectModal = true;
@@ -1002,7 +1031,7 @@
                 closeProjectModal() { 
                     this.showProjectModal = false;
                     this.editingProject = null;
-                    this.currentProject = { name: '', description: '' };
+                    this.currentProject = { id: null, name: '', description: '' };
                 },
                 async saveProject() {
                     if (!this.currentProject.name.trim()) { alert("專案名稱不能為空！"); return; }
@@ -1031,6 +1060,10 @@
                 },
                 confirmDeleteProject(project) {
                     if (!this.currentUser) { this.navigateTo('login'); return; }
+                     if (!this.canDeleteProjects) {
+                        alert("您沒有權限刪除專案。");
+                        return;
+                    }
                     this.itemToDelete = { ...project };
                     this.deleteType = 'project';
                     this.confirmationMessage = `您確定要刪除專案 "${project.name}" 及其所有相關任務嗎？此操作無法復原。`;
@@ -1057,9 +1090,12 @@
                         this.deleteType = '';
                     }
                 },
-                // --- Task CRUD ---
                 openCreateTaskModal(parentId = null) { 
                     if (!this.selectedProject) { alert("請先選擇一個專案！"); return; }
+                     if (!this.canCreateTasks) {
+                        alert("您沒有權限建立任務。");
+                        return;
+                    }
                     this.editingTask = null;
                     this.currentTask = { 
                         name: '', description: '', assignee_id: null, status: '待辦',
@@ -1068,6 +1104,10 @@
                     this.showTaskModal = true;
                 },
                 openEditTaskModal(task) { 
+                    if (!this.canEditTasks) { 
+                        alert("您沒有權限編輯此任務。");
+                        return;
+                    }
                     this.editingTask = task;
                     let dueDateInput = '';
                     if (task.due_date) {
@@ -1120,6 +1160,10 @@
                 },
                 async handleDeleteTask(taskId) {
                     if (!taskId) { console.error("Root: handleDeleteTask called with invalid taskId"); return; }
+                     if (!this.canDeleteTasks) {
+                        alert("您沒有權限刪除任務。");
+                        return;
+                    }
                     try {
                         await this.axiosInstance.delete(`/tasks/${taskId}`);
                         if (this.selectedProject) await this.fetchTasksForProject(this.selectedProject.id);
@@ -1128,7 +1172,6 @@
                         alert("刪除任務失敗: " + (error.response?.data?.error || '未知錯誤'));
                     }
                 },
-                // --- Admin User Management Methods ---
                 async fetchAdminUsersList() {
                     if (!this.isAdmin) return;
                     this.isLoadingAdminUsers = true; this.adminUserMessage = { type: '', text: '' };
@@ -1291,6 +1334,7 @@
                     }
                 },
                 selectProject(project) {
+                    console.log("Selecting project:", project);
                     if (this.selectedProject && this.selectedProject.id === project.id) {
                          this.fetchTasksForProject(project.id);
                         return; 
@@ -1313,9 +1357,9 @@
                     else this.selectedStatusFilter = status;
                 },
                 clearStatusFilter() { this.selectedStatusFilter = null; },
-                showDeleteConfirmation(payload) { // For tasks
+                showDeleteConfirmation(payload) { 
                     this.itemToDelete = { ...payload }; 
-                    this.deleteType = 'task';
+                    this.deleteType = 'task'; 
                     this.confirmationMessage = `您確定要刪除任務 "${payload.name}" 及其所有子任務嗎？此操作無法復原。`;
                     this.showConfirmationModal = true;
                 },
@@ -1332,7 +1376,7 @@
                     } else if (this.deleteType === 'project' && this.itemToDelete) {
                         this.handleActualDeleteProject();
                     } else if (this.deleteType === 'department' && this.itemToDelete) { 
-                        this.handleActualDeleteDepartment(); // Call the correct delete method for departments
+                        this.handleActualDeleteDepartment();
                     }
                     this.itemToDelete = null; 
                     this.deleteType = '';

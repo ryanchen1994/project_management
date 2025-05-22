@@ -1,4 +1,4 @@
-# 專案管理系統 - Python Flask 後端 (完整功能版)
+# 專案管理系統 - Python Flask 後端 (優化註冊與權限顯示)
 # 檔案名稱: main.py
 
 from flask import Flask, jsonify, request
@@ -17,8 +17,7 @@ app = Flask(__name__)
 bcrypt = Bcrypt(app)
 
 # --- 設定 ---
-# ！！！生產環境中，強烈建議透過環境變數設定以下敏感資訊！！！
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'a_very_strong_and_random_secret_key_for_jwt_!@#$%%CHANGE_ME_IMMEDIATELY') 
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'your_VERY_default_super_secret_key_for_jwt_!@#$%_CHANGE_ME_PLEASE_AND_USE_ENV_VAR') 
 DATABASE_URL = os.environ.get(
     'DATABASE_URL', 
     'postgresql://pm_user:12345@192.168.2.140:5432/project_management_db' # 請確認此連線字串的準確性
@@ -30,15 +29,13 @@ app.logger.info(f"正在使用的資料庫 URL (DATABASE_URL): {DATABASE_URL}")
 
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SQLALCHEMY_ECHO'] = os.environ.get('SQLALCHEMY_ECHO', 'False').lower() == 'true' # 透過環境變數控制是否顯示 SQL log
+app.config['SQLALCHEMY_ECHO'] = os.environ.get('SQLALCHEMY_ECHO', 'False').lower() == 'true' 
 
 db = SQLAlchemy(app)
-# 調整 CORS 設定以允許來自特定前端網域的請求，或在開發時設為 "*"
-# 例如: origins=["http://localhost:8080", "https://pmt.thm.com.tw"]
 CORS(app, supports_credentials=True, resources={r"/api/*": {"origins": "*"}}) 
 
 # --- 輔助表格：使用者與群組的多對多關聯 ---
-user_groups_table = db.Table('user_groups', # 更明確的命名
+user_groups_table = db.Table('user_groups',
     db.Column('user_id', PG_UUID(as_uuid=True), db.ForeignKey('users.id', ondelete='CASCADE'), primary_key=True),
     db.Column('group_id', PG_UUID(as_uuid=True), db.ForeignKey('groups.id', ondelete='CASCADE'), primary_key=True)
 )
@@ -65,8 +62,8 @@ class User(db.Model):
     created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     department_id = db.Column(PG_UUID(as_uuid=True), db.ForeignKey('departments.id', ondelete='SET NULL'), nullable=True)
-    tasks_assigned = db.relationship('Task', backref='assignee', lazy='dynamic', foreign_keys='Task.assignee_id') # Changed to lazy='dynamic'
-    groups = db.relationship('Group', secondary=user_groups_table, lazy='subquery', # Use the renamed table
+    tasks_assigned = db.relationship('Task', backref='assignee', lazy='dynamic', foreign_keys='Task.assignee_id')
+    groups = db.relationship('Group', secondary=user_groups_table, lazy='subquery',
                              backref=db.backref('users', lazy=True))
 
     def set_password(self, password):
@@ -89,7 +86,7 @@ class Group(db.Model):
     __tablename__ = 'groups'
     id = db.Column(PG_UUID(as_uuid=True), primary_key=True, default=py_uuid.uuid4)
     name = db.Column(db.String(80), unique=True, nullable=False, index=True)
-    description = db.Column(db.String(255), nullable=True)
+    description = db.Column(db.String(255), nullable=True) # 權限描述可以放在這裡
 
     def as_dict(self):
         return {'id': str(self.id), 'name': self.name, 'description': self.description}
@@ -158,6 +155,7 @@ def require_group(group_names_or_name):
         @wraps(f)
         def decorated_function(current_user, *args, **kwargs):
             user_groups_names = [group.name for group in current_user.groups]
+            app.logger.debug(f"權限檢查: 使用者 {current_user.email} (群組: {user_groups_names}) 嘗試存取需要群組 {group_names} 的資源。")
             if not any(gn in user_groups_names for gn in group_names):
                 app.logger.warning(f"使用者 {current_user.email} 權限不足。需要群組: {group_names}, 現有群組: {user_groups_names}")
                 return jsonify({'message': f"權限不足，需要以下任一群組身份: {', '.join(group_names)}"}), 403
@@ -175,29 +173,23 @@ app.url_map.converters['uuid_string'] = UUIDStringConverter
 def register_user_api():
     data = request.get_json()
     required_fields = ['name', 'email', 'password']
-    if not all(field in data and data[field] for field in required_fields): # Check for empty strings too
+    if not all(field in data and data[field] for field in required_fields):
         return jsonify({'message': f"缺少必要欄位: {', '.join(required_fields)}"}), 400
     if len(data['password']) < 6: return jsonify({'message': '密碼長度至少需要6位'}), 400
     if User.query.filter_by(email=data['email']).first(): return jsonify({'message': '此電子郵件已被註冊'}), 409
     try:
-        department_name = data.get('department')
-        department_id_to_assign = None
-        if department_name:
-            department = Department.query.filter(db.func.lower(Department.name) == db.func.lower(department_name)).first() # Case-insensitive check
-            if department:
-                department_id_to_assign = department.id
-            else:
-                app.logger.info(f"註冊時提供的部門 '{department_name}' 未找到，將不設定部門。")
-        
-        user = User(name=data['name'], email=data['email'], department_id=department_id_to_assign)
+        # 註冊時不再處理 department 欄位，部門由管理員後續指派
+        user = User(name=data['name'], email=data['email'], department_id=None) 
         user.set_password(data['password'])
         db.session.add(user)
         
         default_group = Group.query.filter_by(name="DefaultUser").first()
         if default_group: user.groups.append(default_group)
+        else: app.logger.warning("註冊時找不到 DefaultUser 群組。")
         
         db.session.commit()
         app.logger.info(f"使用者已註冊: {user.email}")
+        # 返回的使用者資訊中，department 會是 null
         return jsonify({'message': '使用者註冊成功', 'user': user.as_dict(include_department=True)}), 201
     except Exception as e:
         db.session.rollback()
@@ -272,37 +264,49 @@ def admin_update_user_api(current_user, user_id_str):
         user_id = py_uuid.UUID(user_id_str)
         user_to_update = User.query.get(user_id)
         if not user_to_update: return jsonify({'message': '找不到使用者'}), 404
+        
         if 'name' in data: user_to_update.name = data['name']
         if 'email' in data:
             if data['email'] != user_to_update.email and User.query.filter_by(email=data['email']).first():
                 return jsonify({'message': '此電子郵件已被其他使用者使用'}), 409
             user_to_update.email = data['email']
-        if 'department_id' in data:
+        
+        if 'department_id' in data: # 前端應傳送 department_id
             if data['department_id']:
                 try: dept_id = py_uuid.UUID(data['department_id'])
                 except ValueError: return jsonify({'message': '無效的部門 ID 格式'}), 400
                 department = Department.query.get(dept_id)
                 if not department: return jsonify({'message': '指定的部門不存在'}), 404
                 user_to_update.department_id = department.id
-            else: user_to_update.department_id = None
+            else: user_to_update.department_id = None # 允許清除部門
+        
         if 'is_active' in data: user_to_update.is_active = data['is_active']
+        
         if 'group_ids' in data and isinstance(data['group_ids'], list):
             admin_group_obj = Group.query.filter_by(name="Administrator").first()
-            if admin_group_obj:
-                is_editing_self_as_admin = (user_to_update.id == current_user.id and admin_group_obj in user_to_update.groups)
-                is_removing_admin_group = str(admin_group_obj.id) not in data['group_ids']
-                if is_editing_self_as_admin and is_removing_admin_group:
-                    admin_users_count = User.query.join(user_groups_table).join(Group).filter(Group.name == "Administrator").count()
+            is_editing_self = (user_to_update.id == current_user.id)
+            
+            if admin_group_obj: # 確保 Administrator 群組存在
+                is_currently_admin = admin_group_obj in user_to_update.groups
+                is_removing_admin_group_from_payload = str(admin_group_obj.id) not in data['group_ids']
+
+                if is_editing_self and is_currently_admin and is_removing_admin_group_from_payload:
+                    # 檢查是否為最後一個管理員
+                    admin_users_count = User.query.join(user_groups_table).filter(user_groups_table.c.group_id == admin_group_obj.id).count()
                     if admin_users_count <= 1:
+                        app.logger.warning(f"管理員 {current_user.email} 嘗試移除自己作為最後一位管理員的權限。")
                         return jsonify({'message': '無法移除最後一位管理員的 "Administrator" 權限'}), 403
+            
             new_groups = []
             for group_id_str_payload in data['group_ids']:
                 try:
                     group_id_payload = py_uuid.UUID(group_id_str_payload)
                     group = Group.query.get(group_id_payload)
                     if group: new_groups.append(group)
+                    else: app.logger.warning(f"更新使用者群組時，找不到群組 ID: {group_id_str_payload}")
                 except ValueError: app.logger.warning(f"更新使用者群組時，略過無效的群組 ID: {group_id_str_payload}")
             user_to_update.groups = new_groups
+        
         db.session.commit()
         app.logger.info(f"管理員 {current_user.email} 更新了使用者 {user_to_update.email} 的資訊")
         return jsonify(user_to_update.as_dict(include_groups=True, include_department=True)), 200
@@ -405,7 +409,7 @@ def admin_delete_department_api(current_user, department_id_str):
         department = Department.query.get(dept_id)
         if not department: return jsonify({'message': '找不到部門'}), 404
         if department.users.first(): 
-            return jsonify({'message': '無法刪除，仍有使用者屬於此部門。請先處理相關使用者。'}), 409
+            return jsonify({'message': '無法刪除，仍有使用者屬於此部門。請先將使用者移至其他部門或清除其部門設定。'}), 409
         db.session.delete(department)
         db.session.commit()
         app.logger.info(f"管理員 {current_user.email} 刪除了部門: {department.name} (ID: {department_id_str})")
@@ -513,6 +517,7 @@ def get_project_tasks_api(current_user, project_id_str):
 
 @app.route('/api/tasks', methods=['POST'])
 @token_required
+@require_group(['Administrator', 'ProjectManager', 'Developer'])
 def create_task_api(current_user):
     payload = request.json
     required_fields = ['name', 'project_id', 'status']
@@ -535,10 +540,8 @@ def create_task_api(current_user):
         if payload.get("due_date"):
             try:
                 due_date_str = payload["due_date"]
-                if 'T' in due_date_str: # ISO format with time
-                    due_date_obj = datetime.fromisoformat(due_date_str.replace('Z', '+00:00'))
-                else: # Assume YYYY-MM-DD format
-                    due_date_obj = datetime.strptime(due_date_str, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+                if 'T' in due_date_str: due_date_obj = datetime.fromisoformat(due_date_str.replace('Z', '+00:00'))
+                else: due_date_obj = datetime.strptime(due_date_str, "%Y-%m-%d").replace(tzinfo=timezone.utc)
             except ValueError: return jsonify({"error": "due_date 格式無效"}), 400
         new_task = Task(name=payload["name"], project_id=project_id, status=payload["status"],
                         description=payload.get("description", ""), assignee_id=assignee_id,
@@ -576,6 +579,17 @@ def update_task_api(current_user, task_id_str):
         task_id = py_uuid.UUID(task_id_str)
         task = Task.query.get(task_id)
         if not task: return jsonify({"error": "找不到任務"}), 404
+        
+        can_edit = False
+        user_group_names = [g.name for g in current_user.groups]
+        if "Administrator" in user_group_names or "ProjectManager" in user_group_names:
+            can_edit = True
+        elif "Developer" in user_group_names and task.assignee_id == current_user.id:
+            can_edit = True # 開發者只能修改指派給自己的任務
+        
+        if not can_edit:
+             return jsonify({'message': '權限不足，無法修改此任務'}), 403
+
         if 'name' in payload: task.name = payload["name"]
         if 'description' in payload: task.description = payload["description"]
         if 'status' in payload: task.status = payload["status"]
@@ -621,6 +635,7 @@ def update_task_api(current_user, task_id_str):
 
 @app.route('/api/tasks/<uuid_string:task_id_str>', methods=['DELETE'])
 @token_required
+@require_group(['Administrator', 'ProjectManager']) 
 def delete_task_api(current_user, task_id_str):
     try:
         task_id = py_uuid.UUID(task_id_str)
@@ -657,7 +672,8 @@ def initialize_database():
             default_departments_data = [
                 {"name": "研發部", "description": "負責產品研發"},
                 {"name": "市場部", "description": "負責市場推廣"},
-                {"name": "行政部", "description": "負責行政事務"}
+                {"name": "行政部", "description": "負責行政事務"},
+                {"name": "未分配", "description": "預設或未指定部門"} 
             ]
             for dept_data in default_departments_data:
                 if not Department.query.filter_by(name=dept_data["name"]).first():
@@ -667,12 +683,17 @@ def initialize_database():
             admin_email = os.environ.get('ADMIN_EMAIL', 'admin@example.com')
             admin_password = os.environ.get('ADMIN_PASSWORD', 'AdminPassword123!')
             admin_user = User.query.filter_by(email=admin_email).first()
-            it_department = Department.query.filter_by(name="研發部").first()
+            
+            default_admin_dept_name = "研發部"
+            admin_department = Department.query.filter_by(name=default_admin_dept_name).first()
+            if not admin_department:
+                admin_department = Department.query.first()
+                app.logger.warning(f"預設管理員部門 '{default_admin_dept_name}' 不存在，將嘗試使用第一個可用部門或不設定。")
 
             if not admin_user:
                 app.logger.info(f"正在建立預設管理員使用者: {admin_email}")
                 admin_user = User(name="系統管理員", email=admin_email)
-                if it_department: admin_user.department_id = it_department.id
+                if admin_department: admin_user.department_id = admin_department.id
                 admin_user.set_password(admin_password)
                 db.session.add(admin_user)
                 db.session.commit() 
